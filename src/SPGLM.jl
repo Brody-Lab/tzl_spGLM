@@ -1,27 +1,18 @@
 module SPGLM
 
-using   Bootstrap,
-        Distributed,
+using   CSV,
+        DataFrames,
         Distributions,
-        DSP,
         ForwardDiff,
         LinearAlgebra,
         LineSearches,
         MAT,
+        MLBase,
         Optim,
         Parameters,
         Random,
         SpecialFunctions,
         StatsFuns
-import  CSV,
-        DataFrames,
-        MLBase
 include("types.jl")
-include("crossvalidation.jl")
-include("evidenceoptimization.jl")
-include("gaussianprior.jl")
-include("loadmodel.jl")
-include("maximumlikelihood.jl")
-include("sampling.jl")
-include("save.jl")
-include("tests.jl")
+include("load.jl")
+end
