@@ -13,6 +13,10 @@ using   CSV,
         Random,
         SpecialFunctions,
         StatsFuns
+
+export  GLM,
+        Options
+
 include("types.jl")
 include("load.jl")
 end
