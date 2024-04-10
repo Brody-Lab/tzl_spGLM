@@ -14,6 +14,8 @@ using   CSV,
         SpecialFunctions,
         StatsFuns
 
+import  StatsBase
+
 export  GLM,
         Options
 

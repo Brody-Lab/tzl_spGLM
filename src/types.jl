@@ -9,7 +9,7 @@ Model settings
 	"absolute path of the file containing the data"
     datapath::TS=""
 	"duration of each timestep in seconds"
-    Δt::TF=0.01
+    dt::TF=0.01
 	"""
 	the hyperparameters below specify the parametrization of the linear kernels
 		- `begin_s`: time relative to the event at which the kernel begins
@@ -54,9 +54,9 @@ Model settings
 	"event on each trial aligned to which spikes are counted"
 	reference_event::TS="cpoke_in"
 	"Time, in second, after which spikes are included on each trial, aligned to the reference event on that trial."
-	reference_before_s::TF=0.5
+	reference_begin_s::TF=-0.5
 	"Time, in second, before which spikes are included on each trial, aligned to the reference event on that trial."
-	reference_after_s::TF=2.0
+	reference_end_s::TF=2.0
 end
 
 """
@@ -107,7 +107,7 @@ Spike trains are not included. In sampled data, the generatives values of the la
     "number of time steps in this trial. The duration of each trial is from the onset of the stereoclick to the end of the fixation period"
     ntimesteps::TI
 	"a nested array whose element `spiketrains[n][t]` is the spike train response of the n-th neuron on the t-th time step of the trial"
-	spiketrain::TVI
+	y::TVI
 	"time of the stereoclick, in seconds, in the sessions"
 	stereoclick_time_s::TF
 	"number of timesteps in the trialset preceding this trial"

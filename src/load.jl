@@ -23,7 +23,7 @@ ARGUMENT
 function Options(options::Dict)
 	keyset = keys(options)
 	defaults = Options()
-	pathfields = (:inputpath, :outputfolder)
+	pathfields = (:datapath, :outputpath)
 	entries = 	map(fieldnames(Options)) do fieldname
 					defaultvalue = getfield(defaults,fieldname)
 					if String(fieldname) ∈ keyset
@@ -38,9 +38,9 @@ function Options(options::Dict)
 	for fieldname in pathfields
 		@assert !isempty(getfield(options, fieldname))
 	end
-	@assert isfile(options.inputpath)
-	!isdir(options.outputfolder) && mkpath(options.outputfolder)
-	@assert isdir(options.outputfolder)
+	@assert isfile(options.datapath)
+	!isdir(options.outputpath) && mkpath(options.outputpath)
+	@assert isdir(options.outputpath)
 	return options
 end
 
@@ -49,14 +49,35 @@ end
 
 RETURN a vector of objects of the composite type `trials`
 """
-function loadtrials(inputpath::String)
-	matfile = read(matopen(inputpath))
+function loadtrials(options::Options)
+	matfile = read(matopen(options.datapath))
 	Cell = matfile["Cell"]
 	Trials = matfile["Trials"]
+	trialindices = (.!Trials["violated"]) .& (Trials["trial_type"] .== "a") .& (Trials["stateTimes"]["cpoke_out"] .> Trials["stateTimes"]["clicks_on"])
+	trialindices = vec(trialindices)
+	ntimesteps = convert(Integer, (options.reference_end_s - options.reference_begin_s)/options.dt) # intentionally to trigger `InexactError` if `ntimesteps` is not an integer
+	binedges_s = options.reference_begin_s:options.dt:(ntimesteps*options.dt)
+	reference_times_s = vec(Trials["stateTimes"][options.reference_event][trialindices])
+	spiketimes_s = vec(Cell["spiketimes_s"])
+	𝐲 = map(reference_times_s) do t
+			y = StatsBase.fit(Histogram, spiketimes_s, (t .+ binedges_s)).weights
+			convert.(UInt8, y)
+		end
+	return 𝐲
 
+	# map((spiketrain, stimulus)->Trial(spiketrain=convert.(UInt8, vec(spiketrain)), stimulus=stimulus), vec(trials["spiketrain"]), stimulus)
 
+	map(findall(trialindices)) do i
+		reference_time_s = Trials["stateTimes"][options.reference_event][i]
 
-	map((spiketrain, stimulus)->Trial(spiketrain=convert.(UInt8, vec(spiketrain)), stimulus=stimulus), vec(trials["spiketrain"]), stimulus)
+		y = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ binedges_s)).weights
+
+		Trial(binedges_s=binedges_s,
+			  e
+			  reference_time_s=reference_time_s,
+			  trialindex=i,
+			  y=y)
+	end
 end
 
 """
