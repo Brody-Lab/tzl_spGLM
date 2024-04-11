@@ -60,58 +60,56 @@ Model settings
 end
 
 """
-    Clicks
-
-Information on the clicks delivered during one trial
-
-The stereoclick is excluded.
-"""
-@with_kw struct Clicks{VF<:Vector{<:AbstractFloat},
-                       BA1<:BitArray{1},
-					   VI<:Vector{<:Integer},
-                       VVI<:Vector{<:Vector{<:Integer}}}
-    "A vector of floats indicating the time of each click. It is sorted in ascending order."
-    time::VF
-	"A vector of integers indicating the timesteps with clicks. Not the timestep of each click"
-	inputtimesteps::VI
-	"A vector of integers whose element `i = inputindex[t]` indicating the i-th input for that time step. `inputtimesteps[inputindex[t]] == t` and `inputindex[inputtimesteps[i]] == i`"
-	inputindex::VVI
-    "An one dimensional BitArray specifying the side of each click. The times of the right and left clicks are given by calling `time[source]` and `time[.!source]`, respectively. "
-    source::BA1
-    "A vector of integers indexing the left clicks that occured in each timestep. The times of the left clicks in the t-th timestep can be found by calling `time[left[t]]`."
-    left::VVI
-    "A vector of integers indexing the right clicks that occured in each timestep. The times of the right click in the t-th timestep can be found by calling `time[right[t]]`."
-    right::VVI
-end
-
-"""
     Trial
 
 Information on the sensory stimulus and behavior each trial
 
 Spike trains are not included. In sampled data, the generatives values of the latent variables are stored.
 """
-@with_kw struct Trial{TB<:Bool, TC<:Clicks, TF<:AbstractFloat, TI<:Integer, TVI<:Vector{<:Integer}}
-    "information on the auditory clicks"
-    clicks::TC
-    "behavioral choice"
+@with_kw struct Trial{	TB<:Bool,
+						TF<:AbstractFloat,
+						TVF<:Vector{<:AbstractFloat},
+						TI<:Integer,
+						TVI<:Vector{<:Integer},
+						TARF<:AbstractRange{<:AbstractFloat}}
+	"edges of the time bins"
+	binedges_s::TARF
+	"behavioral choice"
     choice::TB
 	"log of the ratio of the generative right and left click rate"
 	γ::TF
-	"index of the trial in the trialset"
-	index_in_trialset::TI
+	"times of left clicks"
+	Lclick_times_s::TVF
 	"time of leaving the center port, relative to the time of the stereoclick, in seconds"
-	movementtime_s::TF; @assert movementtime_s > 0
-	"time of leaving the center port, relative to the time of the stereoclick, in time steps"
-	movementtimestep::TI; @assert movementtimestep > 0
-    "number of time steps in this trial. The duration of each trial is from the onset of the stereoclick to the end of the fixation period"
-    ntimesteps::TI
-	"a nested array whose element `spiketrains[n][t]` is the spike train response of the n-th neuron on the t-th time step of the trial"
-	y::TVI
+	movement_time_s::TF
+	"times of right clicks"
+	Rclick_times_s::TVF
+	"time of the reference event"
+	reference_time_s::TF
 	"time of the stereoclick, in seconds, in the sessions"
 	stereoclick_time_s::TF
-	"number of timesteps in the trialset preceding this trial"
-	τ₀::TI
+	"index of the trial in the trialset"
+	trialindex::TI
+	"spike trains"
+	y::TVI
+end
+
+"""
+	WeightIndices
+
+Indices of the encoding weights of the inputs
+"""
+@with_kw struct WeightIndices{UI<:UnitRange{<:Integer}}
+	postspike::UI
+	drift::UI
+	fixation::UI
+	click::UI
+	stereoclick::UI
+	leftclick::UI
+	rightclick::UI
+	movement::UI
+	leftmovement::UI
+	rightmovement::UI
 end
 
 """
@@ -171,16 +169,17 @@ Information on the zero-meaned Gaussian prior distribution on the values of the 
 end
 
 """
-    GLM
+    Model
 
 Poisson generalized linear model
 """
-@with_kw struct GLM{TO<:Options,
+@with_kw struct Model{TO<:Options,
 					VF<:Vector{<:AbstractFloat},
 					MF<:Matrix{<:AbstractFloat},
 					VK<:Vector{<:GLMKernel},
 					VT<:Vector{<:Trial},
 					GP<:GaussianPrior,
+					WI<:WeightIndices,
 					VI<:Vector{<:UInt8}}
 	"gaussian prior"
 	gaussianprior::GP
@@ -188,6 +187,8 @@ Poisson generalized linear model
     options::TO
 	"linear filters"
 	glmkernels::VK
+	""
+	weightindices::WI
 	"trials"
 	trials::VT
 	"concatenated weights"

@@ -59,21 +59,34 @@ function loadtrials(options::Options)
 	binedges_s = options.reference_begin_s:options.dt:(ntimesteps*options.dt)
 	reference_times_s = vec(Trials["stateTimes"][options.reference_event][trialindices])
 	spiketimes_s = vec(Cell["spiketimes_s"])
-	𝐲 = map(reference_times_s) do t
-			y = StatsBase.fit(Histogram, spiketimes_s, (t .+ binedges_s)).weights
-			convert.(UInt8, y)
-		end
-	return 𝐲
-
-	# map((spiketrain, stimulus)->Trial(spiketrain=convert.(UInt8, vec(spiketrain)), stimulus=stimulus), vec(trials["spiketrain"]), stimulus)
-
 	map(findall(trialindices)) do i
 		reference_time_s = Trials["stateTimes"][options.reference_event][i]
-
-		y = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ binedges_s)).weights
-
+		hist = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ binedges_s), closed=:right)
+		y = hist.weights
+		@assert !isnan(Trials["stateTimes"]["cpoke_out"][i])
+		if !isempty(Trials["leftBups"][i])
+			@assert Trials["leftBups"][i][1] == Trials["rightBups"][i][1]
+			stereoclick_time_s = Trials["leftBups"][i][1]+Trials["stateTimes"]["clicks_on"][i]-reference_time_s
+		else
+			stereoclick_time_s = NaN;
+		end
+		if typeof(Trials["leftBups"][i])<:AbstractFloat
+			Lclick_times_s = ones(0)
+		else
+			Lclick_times_s = vec(Trials["leftBups"][i][2:end])
+		end
+		if typeof(Trials["rightBups"][i])<:AbstractFloat
+			Rclick_times_s = ones(0)
+		else
+			Rclick_times_s = vec(Trials["rightBups"][i][2:end])
+		end
 		Trial(binedges_s=binedges_s,
-			  e
+			  choice = Trials["pokedR"][i] == 1,
+			  γ = Trials["gamma"][i],
+			  Lclick_times_s = Lclick_times_s .+ Trials["stateTimes"]["clicks_on"][i] .- reference_time_s,
+			  movement_time_s = Trials["stateTimes"]["cpoke_out"][i] - reference_time_s,
+			  stereoclick_time_s = stereoclick_time_s,
+			  Rclick_times_s = Rclick_times_s .+ Trials["stateTimes"]["clicks_on"][i] .- reference_time_s,
 			  reference_time_s=reference_time_s,
 			  trialindex=i,
 			  y=y)
@@ -81,64 +94,95 @@ function loadtrials(options::Options)
 end
 
 """
-    Clicks(a_latency_s, L, R, Δt, ntimesteps)
+	Model(csvpath, row)
 
-Create an instance of `Clicks` to compartmentalize variables related to the times of auditory clicks in one trial
-
-The stereoclick is excluded.
+RETURN a struct containing data, parameters, and hyperparameters
 
 ARGUMENT
--`a_latency_s`: latency of the accumulator with respect to the clicks
--`Δt`: duration, in seconds, of each time step
--`L`: a vector of floating-point numbers specifying the times of left clicks, in seconds. Does not need to be sorted.
--`ntimesteps`: number of time steps in the trial. Time is aligned to the stereoclick. The first time window is `[-Δt, 0.0)`, and the last time window is `[ntimesteps*Δt, (ntimesteps+1)*Δt)`, defined such that `tₘₒᵥₑ - (ntimesteps+1)*Δt < Δt`, where `tₘₒᵥₑ` is the time when movement away from the center port was first detected.
--`R`: a vector of floating-point numbers specifying the times of right clicks, in seconds. Does not need to be sorted.
-
-RETURN
--an instance of the type `Clicks`
+-`csvpath`: the absolute path to a comma-separated values (CSV) file
+-`row`: the row of the CSV to be considered
 """
-function Clicks(a_latency_s::AbstractFloat,
-				Δt::AbstractFloat,
-                L::Vector{<:AbstractFloat},
-                ntimesteps::Integer,
-                R::Vector{<:AbstractFloat})
-    L = L[.!isapprox.(L, 0.0)] #excluding the stereoclick
-    R = R[.!isapprox.(R, 0.0)]
-	L .+= a_latency_s
-	R .+= a_latency_s
-	rightmost_edge_s = (ntimesteps-1)*Δt
-	L = L[L.<rightmost_edge_s]
-	R = R[R.<rightmost_edge_s]
-    clicktimes = [L;R]
-    indices = sortperm(clicktimes)
-    clicktimes = clicktimes[indices]
-    isright = [falses(length(L)); trues(length(R))]
-    isright = isright[indices]
-    is_in_timestep =
-        map(1:ntimesteps) do t
-            ((t-2)*Δt .<= clicktimes) .& (clicktimes .< (t-1)*Δt) # the right edge of the first time step is defined as 0.0, the time of the stereoclick
-        end
-    right = map(is_in_timestep) do I
-                findall(I .& isright)
-            end
-    isleft = .!isright
-    left =  map(is_in_timestep) do I
-                findall(I .& isleft)
-            end
-	inputtimesteps=findall(sum.(is_in_timestep).>0)
-	inputindex = map(t->findall(inputtimesteps .== t), 1:ntimesteps)
-    Clicks(time=clicktimes,
-		   inputtimesteps=inputtimesteps,
-		   inputindex=inputindex,
-           source=isright,
-           left=left,
-           right=right)
+Model(csvpath::String, row::Integer) = Model(Options(csvpath, row))
+Model(csvpath::String) = Model(csvpath,1)
+
+"""
+    Model(options, trialsets)
+
+RETURN a struct containing data, parameters, and hyperparameters of a factorial hidden Markov drift-diffusion model
+
+ARGUMENT
+-`options`: a struct containing the fixed hyperparameters of the model
+-`trialsets`: data used to constrain the model
+"""
+function Model(options::Options, trials::Vector{<:Trial})
+	Φclick = temporal_basis_functions("click", options)
+	Φpostspike = temporal_basis_functions("postspike", options)
+	Φmovement = temporal_basis_functions("movement", options)
+	Φfixation = temporal_basis_functions("fixation", options)
+	Φdrift, 𝐗drift = drift_design_matrix(options, stereoclick_times_s, trialdurations, 𝐲)
+	𝐲 = vcat((trial.spiketrains[n] for trial in trials)...)
+	T = length(𝐲)
+	empty = Array{typeof(1.0)}(undef,T,0)
+	𝐗 = copy(empty)
+	for fieldname in fieldnames(WeightIndices)
+		indices = UnitRange{Int}[]
+		k = 0
+		if contains(String(fieldname), "click")
+			if getfield(options, Symbol("include_"*String(fieldname)))
+				𝐗add = click_inputs(Φclick, trials, laterality=fieldname)
+				𝐗 = hcat(𝐗, 𝐗add)
+				N = size(𝐗add,2)
+				indices = vcat(indices, [k .+ (1:N)])
+				k += N
+			end
+		end
+		if contains(String(fieldname), "movement")
+			if getfield(options, Symbol("include_"*String(fieldname)))
+				𝐗add = movement_inputs(Φmovement, trials, laterality=fieldname)
+				𝐗 = hcat(𝐗, 𝐗add)
+				N = size(𝐗add,2)
+				indices = vcat(indices, [k .+ (1:N)])
+				k += N
+			end
+		end
+	end
+	𝐗stereoclick = options.include_stereoclick ? click_inputs(Φclick, trials, laterality=2) : empty
+	𝐗leftclick = click_inputs(Φclick, trials, laterality= -1)
+	𝐗rightclick = click_inputs(Φclick, trials, laterality= 1)
+	𝐗leftchoice = movement_inputs(Φmovement, trials, laterality= -1)
+	𝐗rightchoice = movement_inputs(Φmovement, trials, laterality= 1)
+	𝐗fixation = fixation_inputs(Φfixation, trials)
+	𝐗postspike = postspike_inputs(Φpostspike, trialdurations, 𝐲)
+	𝐗=hcat(𝐗postspike, 𝐗drift, 𝐗fixation, 𝐗stereoclick, 𝐗leftclick, 𝐗rightclick, 𝐗leftchoice, 𝐗rightchoice)
+
+	𝐔poststereoclick = poststereoclickbasis(Φpoststereoclick, trialdurations)
+	𝐔premovement = premovementbasis(movementtimesteps, Φpremovement, trialdurations)
+	𝐲 = vcat((trial.spiketrains[n] for trial in trials)...)
+	Φdrift, 𝐔drift = drift_design_matrix(options, stereoclick_times_s, trialdurations, 𝐲)
+	𝐔postspike = spikehistorybasis(Φpostspike, trialdurations, 𝐲)
+	𝐗=hcat(𝐔drift, 𝐔postspike, 𝐔poststereoclick, 𝐔premovement, 𝐔postphotostimulus, 𝐕)
+	indices𝐮 = Indices𝐮(size(𝐔drift,2), size(Φpostspike,2), size(Φpoststereoclick,2), size(Φpremovement,2), size(Φpostphotostimulus,2))
+	glmθ = GLMθ(indices𝐮, size(𝐕,2), options)
+	Model(options=options,
+			Φdrift=Φdrift,
+			Φpostspike=Φpostspike,
+			Φpoststereoclick=Φpoststereoclick,
+			Φpremovement=Φpremovement,
+			𝐗=𝐗,
+			𝐲=𝐲)
+	end
+
+
+
+
+	gaussianprior=GaussianPrior(options, trialsets)
+	θnative = randomize_latent_parameters(options)
+	θ₀native = FHMDDM.copy(θnative)
+	Model(options=options,
+		   gaussianprior=gaussianprior,
+		   θnative=θnative,
+		   θreal=native2real(options, θnative),
+		   θ₀native=θ₀native,
+		   trialsets=trialsets)
 end
-
-
-"""
-
-"""
-function GLM(inputpath::String)
-
-end
+Model(options::Options) = Model(options, loadtrials(options))
