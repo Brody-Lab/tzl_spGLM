@@ -3,13 +3,15 @@
 
 Model settings
 """
-@with_kw struct Options{TB<:Bool, TF<:AbstractFloat, TI<:Integer, TS<:String, VSym<:Vector{<:Symbol}}
-	"order by which inputs are concatenated"
-	concatenationorder::VSym = [:click, :drift, :movement, :postspike, :stereoclick]
+@with_kw struct Options{TB<:Bool, TF<:AbstractFloat, TI<:Integer, TS<:String}
 	"absolute path of the file containing the data"
     datapath::TS=""
 	"duration of each timestep in seconds"
     dt::TF=0.01
+	"Time, in second, after which spikes are included on each trial, aligned to the reference event on that trial."
+	reference_begin_s::TF=-0.5
+	"Time, in second, before which spikes are included on each trial, aligned to the reference event on that trial."
+	reference_end_s::TF=2.0
 	"""
 	the hyperparameters below specify the parametrization of the linear kernels
 		- `begin_s`: time relative to the event at which the kernel begins
@@ -17,46 +19,54 @@ Model settings
 		- `begins0`: whether the first value of the kernel begins at zero
 		- `ends0`: whether the last value of the kernel begins at zero
 		- `N`: whether the first value of the kernel begins at zero
-		- `eta`: nonlinearity in the parametrization of the kernel
+		- `stretch`: nonlinearity in the parametrization of the kernel
 	"""
 	"click-aligned linear filter"
-	k_click_begin_s::TF=0.01
-	k_click_end_s::TF=0.5
-	k_click_begins0::TB=true
-	k_click_ends0::TB=true
-	k_click_N::TI=5
-	k_click_eta::TF=1.0
-	k_click_side_selective::TB=false
+	tbf_click_begin_s::TF= -0.01
+	tbf_click_end_s::TF=0.49
+	tbf_click_begins0::TB=true
+	tbf_click_ends0::TB=true
+	tbf_click_D::TI=5
+	tbf_click_stretch::TF=1.0
 	"movement-aligned linear filter"
-	k_movement_begin_s::TF= -1.0
-	k_movement_end_s::TF=0.5
-	k_movement_begins0::TB=true
-	k_movement_ends0::TB=false
-	k_movement_N::TI=5
-	k_movement_eta::TF=0.2
-	k_movement_choice_selective::TB=false
+	tbf_movement_begin_s::TF = -1.0
+	tbf_movement_end_s::TF = 0.5
+	tbf_movement_begins0::TB=true
+	tbf_movement_ends0::TB=false
+	tbf_movement_D::TI=5
+	tbf_movement_stretch::TF=0.2
 	"postspike filter"
-	k_postspike_begin_s::TF=0.01
-	k_postspike_end_s::TF=0.25
-	k_postspike_begins0::TB=false
-	k_postspike_ends0::TB=true
-	k_postspike_N::TI=5
-	k_postspike_eta::TF=1.0
-	"kernel aligned to the stereoclick"
-	k_stereoclick_begin_s::TF=0.01
-	k_stereoclick_end_s::TF=0.5
-	k_stereoclick_begins0::TB=false
-	k_stereoclick_ends0::TB=false
-	k_stereoclick_N::TI=5
-	k_stereoclick_eta::TF=1.0
+	tbf_postspike_begin_s::TF=0.0
+	tbf_postspike_end_s::TF=0.25
+	tbf_postspike_begins0::TB=false
+	tbf_postspike_ends0::TB=true
+	tbf_postspike_D::TI=5
+	tbf_postspike_stretch::TF=1.0
+	"time in trial aligned to the reference event"
+	tbf_reference_begin_s::TF=reference_begin_s
+	tbf_reference_end_s::TF=reference_end_s
+	tbf_reference_begins0::TB=false
+	tbf_postspike_ends0::TB=false
+	tbf_reference_D::TI=5
+	tbf_reference_stretch::TF=1.0
+	"""
+	hyperparameters governing the inputs
+	"""
+	input_click::TB = false
+	input_leftclick::TB = true
+	input_rightclick::TB = true
+	input_stereoclick::TB = false
+	input_movement::TB = false
+	input_leftmovement::TB = true
+	input_rightmovement::TB = true
+	"latency of click-related input"
+	latency_click_s::TF = 0.01
+	"latency of the post-spike input"
+	latency_postspike_s::TF = 0.01
 	"absolute path of the folder where the model output, including the summary and predictions, are saved"
 	outputpath::TS=""
 	"event on each trial aligned to which spikes are counted"
 	reference_event::TS="cpoke_in"
-	"Time, in second, after which spikes are included on each trial, aligned to the reference event on that trial."
-	reference_begin_s::TF=-0.5
-	"Time, in second, before which spikes are included on each trial, aligned to the reference event on that trial."
-	reference_end_s::TF=2.0
 end
 
 """
@@ -76,6 +86,8 @@ Spike trains are not included. In sampled data, the generatives values of the la
 	binedges_s::TARF
 	"behavioral choice"
     choice::TB
+	"time of the onset of nose fixation"
+	fixation_time_s::TF
 	"log of the ratio of the generative right and left click rate"
 	γ::TF
 	"times of left clicks"
@@ -100,16 +112,16 @@ end
 Indices of the encoding weights of the inputs
 """
 @with_kw struct WeightIndices{UI<:UnitRange{<:Integer}}
-	postspike::UI
-	drift::UI
-	fixation::UI
 	click::UI
-	stereoclick::UI
+	fixation::UI
 	leftclick::UI
-	rightclick::UI
-	movement::UI
 	leftmovement::UI
+	movement::UI
+	postspike::UI
+	reference::UI
+	rightclick::UI
 	rightmovement::UI
+	stereoclick::UI
 end
 
 """

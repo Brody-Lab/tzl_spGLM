@@ -1,35 +1,4 @@
 """
-	accumulatorbasis(maxtimesteps, options)
-
-Temporal basis functions for the accumulator kernel
-
-ARGUMENT
--`maxtimesteps`: maximum number of time steps across all trials in a trialset
--`options`: settings of the model
-
-RETURN
--`Φ`: temporal basis functions. Element Φ[τ,i] corresponds to the value of  i-th temporal basis function in the τ-th time bin in the kernel
-"""
-function accumulatorbasis(maxtimesteps::Integer, options::Options)
-	nfunctions = ceil(options.tbf_accumulator_hz*(maxtimesteps*options.Δt))
-	scalefactor = options.sf_tbf[1]*options.tbf_accumulator_scalefactor
-	if isnan(nfunctions)
-		return ones(0,0)
-	elseif nfunctions < 1
-		return ones(maxtimesteps,1) .* (scalefactor/√maxtimesteps)
-	else
-		temporal_basis_functions(options.tbf_accumulator_begins0,
-								options.tbf_accumulator_ends0,
-								false,
-								convert(Int, nfunctions),
-								maxtimesteps,
-								options.scalefactor,
-								options.tbf_accumulator_stretch;
-								orthogonal_to_ones=false)
-	end
-end
-
-"""
 	temporal_basis_functions(filtername, options)
 
 Temporal basis functions used to fit a filter
@@ -41,15 +10,55 @@ ARGUMENT
 RETURN
 -`Φ`: temporal basis functions. Element Φ[τ,i] corresponds to the value of  i-th temporal basis function in the τ-th time bin in the kernel
 """
-function temporal_basis_functions(filtername::String, options::Options)
-	temporal_basis_functions(getfield(options, Symbol("tbf_"*filtername*"_begins0")),
-                            options.Δt,
-							getfield(options, Symbol("tbf_"*filtername*"_dur_s")),
-                            getfield(options, Symbol("tbf_"*filtername*"_ends0")),
-                            getfield(options, Symbol("tbf_"*filtername*"_hz")),
-                            getfield(options, Symbol("tbf_"*filtername*"_scalefactor"))*options.sf_tbf[1],
-                            getfield(options, Symbol("tbf_"*filtername*"_stretch")),
-							orthogonal_to_ones = true)
+function temporal_basis_functions(basistype::String, options::Options)
+	begin_s = getfield(options, Symbol("tbf_"*basistype*"_begin_s"))
+	end_s = getfield(options, Symbol("tbf_"*basistype*"_end_s"))
+	nvalues = ceil(Int, (end_s-begin_s) / options.dt)
+	startingvalue = 1 + ((begin_s < 0.0) ? ceil(Int, -begin_s / options.dt) : 0)
+	basisfunctions( nvalues,
+					getfield(options, Symbol("tbf_"*basistype*"_D"));
+					begins0=getfield(options, Symbol("tbf_"*basistype*"_begins0")),
+					ends0=getfield(options, Symbol("tbf_"*basistype*"_ends0")),
+                	η=getfield(options, Symbol("tbf_"*basistype*"_stretch")),
+					startingvalue = startingvalue)
+end
+
+"""
+    basisfunctions(nvalues, nfunctions)
+
+Nonlinear basis functions of an one-dimensional integer input
+
+ARGUMENT
+-`nvalues`: number of values of the input tiled by the basis functions
+-`N`: number of basis functions
+
+OPTIONAL ARGUMENT
+-`startingvalue`: an integer indicating the shift in the input values
+-`η`: a positive scalar indicating the magnitude to which basis functions evaluated near the `startingvalue` is compressed and functions evaluated far from the `startingvalue` is stretched
+-`begins0`: whether the value of each basis function at the first input value is 0
+-`ends0`: whether the value of each basis function at the last input value is 0
+-`orthogonal_to_ones:` whether the basis functions should be orthogonal to a constant vector
+
+RETURN
+-`Φ`: Matrix whose element Φ[i,j] corresponds to the value of the j-th temporal basis function at the i-th input
+"""
+function basisfunctions(nvalues::Integer, D::Integer; begins0::Bool=false, ends0::Bool=false, η::Real=0.0, startingvalue::Integer=1, orthogonal_to_ones::Bool=false, orthogonalize::Bool=true)
+    if D == 1
+        Φ = ones(nvalues,1)./nvalues
+    else
+        𝐱 = collect(1:nvalues) .- startingvalue
+        if η > eps()
+            𝐱 = asinh.(η.*𝐱)
+        end
+        Φ = raisedcosines(begins0, D, ends0, 𝐱)
+        if orthogonal_to_ones
+            Φ = orthogonalize_to_ones(Φ)
+        end
+        if orthogonalize
+            Φ = orthonormalbasis(Φ)
+        end
+    end
+    return Φ
 end
 
 """
@@ -133,158 +142,6 @@ function temporal_basis_functions(Φ::Matrix{<:AbstractFloat}, 𝐓::Vector{<:In
 	    end
 	end
 	return 𝐕
-end
-
-"""
-	photostimulusbasis(options, 𝐭_onset_s, 𝐭_offset_s, 𝐓)
-
-Temporal basis vectors for learning the photostimulus filter and their values in each time step
-
-ARGUMENT
--`options`: settings of the model
--`𝐭_onset_s`: time of photostimulus onset in each trial
--`𝐭_offset_s`: time of photostimulus offset in each trial
--`𝐓`: number of time steps in each trial
-
-RETURN
--`Φ`: a matrix of floats whose columns correspond to the temporal basis vectors and whose rows correspond to time steps relative to photostimulus onset.
--`Φtimesteps`: a unit range of integers representing the time steps of `Φ` relative to photostimulus onset. Each value of `Φtimesteps` corresponds to a row of `Φ`. A value of `Φtimesteps[i]=1` indicates that the i-th row of `Φ` corresponds to the time step when the photostimulus occured.
--`𝐔`: a matrix of floats whose columns correspond to the temporal basis vectors and whose rows correspond to time steps in a trialset
-"""
-function photostimulusbasis(options::Options, 𝐭_onset_s::Vector{<:AbstractFloat}, 𝐭_offset_s::Vector{<:AbstractFloat}, 𝐓::Vector{<:Integer})
-	indices = map(𝐭_onset_s, 𝐭_offset_s) do t_on, t_off
-					!isnan(t_on) && !isnan(t_off)
-			  end
-	if (sum(indices)==0) || isnan(options.tbf_postphotostimulus_hz)
-		Φ = zeros(0, 0)
-		Φtimesteps = 1:0
-		𝐔 = zeros(sum(𝐓), size(Φ,2))
-	else
-		duration = round.((𝐭_offset_s[indices] .- 𝐭_onset_s[indices])./options.Δt)
-		duration = unique(duration[.!isnan.(duration)])
-		@assert length(duration)==1
-		@assert duration[1] > 0
-		duration = duration[1]
-		duration = convert(Int, duration)
-		𝐭ₒₙ = 𝐭_onset_s[indices]./options.Δt
-		𝐭ₒₙ = collect(tₒₙ < 0.0 ? floor(Int, tₒₙ) : ceil(Int, tₒₙ) for tₒₙ in 𝐭ₒₙ)
-		Φ, Φtimesteps = photostimulusbasis(duration, options, 𝐓[indices], 𝐭ₒₙ)
-		𝐔 = zeros(sum(𝐓), size(Φ,2))
-		photostimulusbasis!(𝐔, indices, Φ, Φtimesteps, 𝐓, 𝐭ₒₙ)
-	end
-	return Φ, Φtimesteps, 𝐔
-end
-
-"""
-	photostimulusbasis(duration, options, 𝐓, 𝐭ₒₙ)
-
-Temporal basis vectors for learning the photostimulus filter
-
-ARGUMENT
--`duration`: number of time steps in the photostimulus
--`options`: settings of the model
--`𝐓`: number of time steps in each trial, for only the trials with a photostimulus
--`𝐭ₒₙ`: the time step in each trial when the photostimulus began, for only the trials with a photostimulus
-
-RETURN
--`Φ`: a matrix of floats whose columns correspond to the temporal basis vectors and whose rows correspond to time steps relative to photostimulus onset.
--`Φtimesteps`: a unit range of integers representing the time steps of `Φ` relative to photostimulus onset. Each value of `Φtimesteps` corresponds to a row of `Φ`. A value of `Φtimesteps[i]=1` indicates that the i-th row of `Φ` corresponds to the time step when the photostimulus occured.
-"""
-function photostimulusbasis(duration::Integer, options::Options, 𝐓::Vector{<:Integer}, 𝐭ₒₙ::Vector{<:Integer})
-	nsteps_onset_to_trialend = map((T, tₒₙ)-> tₒₙ < 0 ? T-tₒₙ : T-tₒₙ+1, 𝐓, 𝐭ₒₙ)
-	ntimesteps = maximum(nsteps_onset_to_trialend)
-	nfunctions = ceil(Int, options.tbf_postphotostimulus_hz*duration*options.Δt)
-	scalefactor = options.tbf_postphotostimulus_scalefactor*options.sf_tbf[1]
-	Φon = temporal_basis_functions(options.tbf_postphotostimulus_begins0,
-									options.tbf_postphotostimulus_ends0,
-									nfunctions,
-									ntimesteps,
-									1.0,
-									options.tbf_postphotostimulus_stretch;
-									orthogonal_to_ones=true)
-	latest_onset = maximum(𝐭ₒₙ)
-	if latest_onset < 0
-		Φtimesteps = 1-latest_onset:size(Φon,1)
-		Φon = Φon[Φtimesteps, :]
-	else
-		Φtimesteps = 1:size(Φon,1)
-	end
-	Φon = orthonormalbasis(Φon)
-	indexoff = findfirst(Φtimesteps.==(duration+1))
-	if indexoff != nothing
-		nsteps_offset = length(Φtimesteps) - indexoff + 1
-		nfunctions = ceil(Int, options.tbf_postphotostimulus_hz*nsteps_offset*options.Δt)
-		Φoff = temporal_basis_functions(options.tbf_postphotostimulus_begins0,
-			                           options.tbf_postphotostimulus_ends0,
-									   nfunctions,
-			                           nsteps_offset,
-			                           scalefactor,
-			                           options.tbf_postphotostimulus_stretch;
-   									   orthogonal_to_ones=true)
-		Φoff = vcat(zeros(indexoff-1, size(Φoff,2)), Φoff)
-		if !isempty(Φoff)
-			Φoff = orthonormalbasis(Φoff)
-		end
- 		Φ = hcat(Φon, Φoff)
-		Φ = orthonormalbasis(Φ)
-	else
-		Φ = Φon
-	end
-	Φ .*= scalefactor
-	return Φ, Φtimesteps
-end
-
-"""
-	photostimulusbasis!(𝐔, Φ, Φtimesteps, 𝐓, 𝐭ₒₙ)
-
-Evaluate each temporal basis vector at each time step in a trialset
-
-MODIFIED ARGUMENT
--`𝐔`: a matrix of floats whose columns correspond to the temporal basis vectors and whose rows correspond to time steps in a trialset
-
-ARGUMENT
--`indices`: a bit vector indicating which trial in the trialset has a photostimulus
--`Φ`: a matrix of floats whose columns correspond to the temporal basis vectors and whose rows correspond to time steps relative to photostimulus onset.
--`Φtimesteps`: a unit range of integers representing the time steps of `Φ` relative to photostimulus onset. Each value of `Φtimesteps` corresponds to a row of `Φ`. A value of `Φtimesteps[i]=1` indicates that the i-th row of `Φ` corresponds to the time step when the photostimulus occured.
--`𝐓`: a vector of integers representing the number of time steps in each trial in the trialset
--`𝐭ₒₙ`: a vector of integers representing the time step when the photostimulus began, for trials with a photostimulus.
-"""
-function photostimulusbasis!(𝐔::Matrix{<:AbstractFloat}, indices::Vector{Bool}, Φ::Matrix{<:AbstractFloat}, Φtimesteps::UnitRange{<:Integer}, 𝐓::Vector{<:Integer}, 𝐭ₒₙ::Vector{<:Integer})
-	D = size(Φ,2)
-	τ = 0
-	k = 0
-	for m in eachindex(𝐓)
-		T = 𝐓[m]
-		if indices[m]
-			k += 1
-			tₒₙ = 𝐭ₒₙ[k]
-			if tₒₙ < 0
-				i = 1 - Φtimesteps[1] - tₒₙ
-				for t in 1:T
-					τ += 1
-					i += 1
-					for d = 1:D
-						𝐔[τ,d] = Φ[i,d]
-					end
-				end
-			else
-				i = 1 - tₒₙ
-				for t in 1:T
-					τ += 1
-					i += 1
-					if i > 0
-						for d = 1:D
-							𝐔[τ,d] = Φ[i,d]
-						end
-					end
-				end
-			end
-		else
-			τ += T
-		end
-	end
-	@assert τ == size(𝐔,1)
-	return nothing
 end
 
 """
@@ -470,6 +327,51 @@ function raisedcosines(begins0::Bool, ends0::Bool, D::Integer, nbins::Integer, s
         Φ[:,1] += lefttail
         Φ[:,end] += righttail
         indices = t .<= centers[1] + period/2*Δcenter
+        deviations = 2.0 .- sum(Φ,dims=2) # introduced by time compression
+        Φ[indices,1] .+= deviations[indices]
+    end
+    return Φ
+end
+
+"""
+    raisedcosines(begins0, D, ends0, 𝐱)
+
+Equally spaced raised cosine basis functions
+
+ARGUMENT
+-`begins0`: whether the first temporal basis function begins at the trough or at the peak
+-`ends0`: whether the last temporal basis function begins at the trough or at the peak
+-`D`: number of bases
+-`𝐱`: input to the raised cosine function
+
+RETURN
+-`Φ`: Matrix whose element Φ[i,j] corresponds to the value of the j-th temporal basis function at the i-th input
+"""
+function raisedcosines(begins0::Bool, D::Integer, ends0::Bool, 𝐱::Vector{<:Real})
+    Δx = 𝐱[end]-𝐱[1]
+    if begins0
+        if ends0
+            Δcenter = Δx / (D+3)
+        else
+            Δcenter = Δx / (D+1)
+        end
+        centers = 𝐱[1] .+ 2Δcenter .+ collect(0:max(1,D-1)).*Δcenter
+    else
+        if ends0
+            Δcenter = Δx / (D+1)
+        else
+            Δcenter = Δx / (D-1)
+        end
+        centers = 𝐱[1] .+ collect(0:max(1,D-1)).*Δcenter
+    end
+    ω = π/2/Δcenter
+    Φ = raisedcosines(centers, ω, 𝐱)
+    if !begins0 && !ends0 # allow temporal basis functions to parametrize a constant function
+        lefttail = raisedcosines([centers[1]-Δcenter], ω, 𝐱)
+        righttail = raisedcosines([centers[end]+Δcenter], ω, 𝐱)
+        Φ[:,1] += lefttail
+        Φ[:,end] += righttail
+        indices = 𝐱 .<= centers[1] + 2/Δcenter
         deviations = 2.0 .- sum(Φ,dims=2) # introduced by time compression
         Φ[indices,1] .+= deviations[indices]
     end

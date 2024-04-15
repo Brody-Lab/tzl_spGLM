@@ -21,4 +21,5 @@ export  GLM,
 
 include("types.jl")
 include("load.jl")
+include("temporal_basis_functions.jl")
 end

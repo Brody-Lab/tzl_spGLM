@@ -48,6 +48,9 @@ end
 	loadtrials(options)
 
 RETURN a vector of objects of the composite type `trials`
+
+ARGUMENT
+-`options`: a structure containing fixed hyperparameters
 """
 function loadtrials(options::Options)
 	matfile = read(matopen(options.datapath))
@@ -82,6 +85,7 @@ function loadtrials(options::Options)
 		end
 		Trial(binedges_s=binedges_s,
 			  choice = Trials["pokedR"][i] == 1,
+			  fixation_time_s = Trials["stateTimes"]["cpoke_in"][i] - reference_time_s,
 			  γ = Trials["gamma"][i],
 			  Lclick_times_s = Lclick_times_s .+ Trials["stateTimes"]["clicks_on"][i] .- reference_time_s,
 			  movement_time_s = Trials["stateTimes"]["cpoke_out"][i] - reference_time_s,
@@ -118,8 +122,7 @@ function Model(options::Options, trials::Vector{<:Trial})
 	Φclick = temporal_basis_functions("click", options)
 	Φpostspike = temporal_basis_functions("postspike", options)
 	Φmovement = temporal_basis_functions("movement", options)
-	Φfixation = temporal_basis_functions("fixation", options)
-	Φdrift, 𝐗drift = drift_design_matrix(options, stereoclick_times_s, trialdurations, 𝐲)
+	Φfixation = temporal_basis_functions("reference", options)
 	𝐲 = vcat((trial.spiketrains[n] for trial in trials)...)
 	T = length(𝐲)
 	empty = Array{typeof(1.0)}(undef,T,0)
@@ -145,6 +148,16 @@ function Model(options::Options, trials::Vector{<:Trial})
 				k += N
 			end
 		end
+		if contains(String(fieldname), "reference")
+			if getfield(options, Symbol("include_"*String(fieldname)))
+				𝐗add = reference_inputs(Φmovement, trials, laterality=fieldname)
+				𝐗 = hcat(𝐗, 𝐗add)
+				N = size(𝐗add,2)
+				indices = vcat(indices, [k .+ (1:N)])
+				k += N
+			end
+		end
+
 	end
 	𝐗stereoclick = options.include_stereoclick ? click_inputs(Φclick, trials, laterality=2) : empty
 	𝐗leftclick = click_inputs(Φclick, trials, laterality= -1)
@@ -170,19 +183,5 @@ function Model(options::Options, trials::Vector{<:Trial})
 			Φpremovement=Φpremovement,
 			𝐗=𝐗,
 			𝐲=𝐲)
-	end
-
-
-
-
-	gaussianprior=GaussianPrior(options, trialsets)
-	θnative = randomize_latent_parameters(options)
-	θ₀native = FHMDDM.copy(θnative)
-	Model(options=options,
-		   gaussianprior=gaussianprior,
-		   θnative=θnative,
-		   θreal=native2real(options, θnative),
-		   θ₀native=θ₀native,
-		   trialsets=trialsets)
 end
 Model(options::Options) = Model(options, loadtrials(options))
