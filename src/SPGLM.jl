@@ -16,10 +16,8 @@ using   CSV,
 
 import  StatsBase
 
-export  GLM,
-        Options
-
 include("types.jl")
 include("load.jl")
-include("temporal_basis_functions.jl")
+include("basisfunctions.jl")
+include("modelinputs.jl")
 end

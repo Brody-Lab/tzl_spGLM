@@ -58,42 +58,39 @@ function loadtrials(options::Options)
 	Trials = matfile["Trials"]
 	trialindices = (.!Trials["violated"]) .& (Trials["trial_type"] .== "a") .& (Trials["stateTimes"]["cpoke_out"] .> Trials["stateTimes"]["clicks_on"])
 	trialindices = vec(trialindices)
-	ntimesteps = convert(Integer, (options.reference_end_s - options.reference_begin_s)/options.dt) # intentionally to trigger `InexactError` if `ntimesteps` is not an integer
-	binedges_s = options.reference_begin_s:options.dt:(ntimesteps*options.dt)
-	reference_times_s = vec(Trials["stateTimes"][options.reference_event][trialindices])
+	Na = floor(Int, options.time_in_trial_begin_s/options.dt)
+	Nb = ceil(Int, options.time_in_trial_end_s/options.dt)
+	binedges_s = (Na*options.dt):options.dt:(Nb*options.dt)
 	spiketimes_s = vec(Cell["spiketimes_s"])
 	map(findall(trialindices)) do i
 		reference_time_s = Trials["stateTimes"][options.reference_event][i]
 		hist = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ binedges_s), closed=:right)
 		y = hist.weights
 		@assert !isnan(Trials["stateTimes"]["cpoke_out"][i])
-		if !isempty(Trials["leftBups"][i])
-			@assert Trials["leftBups"][i][1] == Trials["rightBups"][i][1]
-			stereoclick_time_s = Trials["leftBups"][i][1]+Trials["stateTimes"]["clicks_on"][i]-reference_time_s
-		else
-			stereoclick_time_s = NaN;
+		movement_timestep = ceil(Int, (Trials["stateTimes"]["cpoke_out"][i] - reference_time_s)/options.dt)
+		leftclicks_s = Trials["leftBups"][i] .+ Trials["stateTimes"]["clicks_on"][i] .- reference_time_s
+		rightclicks_s = Trials["rightBups"][i] .+ Trials["stateTimes"]["clicks_on"][i] .- reference_time_s
+		if typeof(leftclicks_s)<:AbstractFloat
+			leftclicks_s = [leftclicks_s]
 		end
-		if typeof(Trials["leftBups"][i])<:AbstractFloat
-			Lclick_times_s = ones(0)
-		else
-			Lclick_times_s = vec(Trials["leftBups"][i][2:end])
+		if typeof(rightclicks_s)<:AbstractFloat
+			rightclicks_s = [rightclicks_s]
 		end
-		if typeof(Trials["rightBups"][i])<:AbstractFloat
-			Rclick_times_s = ones(0)
-		else
-			Rclick_times_s = vec(Trials["rightBups"][i][2:end])
-		end
-		Trial(binedges_s=binedges_s,
-			  choice = Trials["pokedR"][i] == 1,
-			  fixation_time_s = Trials["stateTimes"]["cpoke_in"][i] - reference_time_s,
-			  γ = Trials["gamma"][i],
-			  Lclick_times_s = Lclick_times_s .+ Trials["stateTimes"]["clicks_on"][i] .- reference_time_s,
-			  movement_time_s = Trials["stateTimes"]["cpoke_out"][i] - reference_time_s,
-			  stereoclick_time_s = stereoclick_time_s,
-			  Rclick_times_s = Rclick_times_s .+ Trials["stateTimes"]["clicks_on"][i] .- reference_time_s,
-			  reference_time_s=reference_time_s,
-			  trialindex=i,
-			  y=y)
+		@assert leftclicks_s[1] == rightclicks_s[1]
+		stereoclick_timestep = ceil(Int, leftclicks_s[1]/options.dt)
+		leftclicks_timestep = ceil.(Int, leftclicks_s[2:end]./options.dt)
+		rightclicks_timestep = ceil.(Int, rightclicks_s[2:end]./options.dt)
+		clicks_timestep = [stereoclick_timestep; leftclicks_timestep; rightclicks_timestep]
+		clicks_source = [2; zeros(Int, length(leftclicks_timestep)); ones(Int, length(rightclicks_timestep))]
+		Trial(choice = Trials["pokedR"][i] == 1,
+				clicks_source=clicks_source,
+				clicks_timestep=clicks_timestep,
+				γ = Trials["gamma"][i],
+				movement_timestep = movement_timestep,
+				reference_time_s=reference_time_s,
+				timesteps_s=binedges_s[2:end],
+				trialindex=i,
+				y=y)
 	end
 end
 
@@ -108,6 +105,7 @@ ARGUMENT
 """
 Model(csvpath::String, row::Integer) = Model(Options(csvpath, row))
 Model(csvpath::String) = Model(csvpath,1)
+Model(options::Options) = Model(options, loadtrials(options))
 
 """
     Model(options, trialsets)
@@ -119,69 +117,30 @@ ARGUMENT
 -`trialsets`: data used to constrain the model
 """
 function Model(options::Options, trials::Vector{<:Trial})
-	Φclick = temporal_basis_functions("click", options)
-	Φpostspike = temporal_basis_functions("postspike", options)
-	Φmovement = temporal_basis_functions("movement", options)
-	Φfixation = temporal_basis_functions("reference", options)
-	𝐲 = vcat((trial.spiketrains[n] for trial in trials)...)
+	𝐲 = vcat((trial.y for trial in trials)...)
 	T = length(𝐲)
-	empty = Array{typeof(1.0)}(undef,T,0)
-	𝐗 = copy(empty)
-	for fieldname in fieldnames(WeightIndices)
-		indices = UnitRange{Int}[]
-		k = 0
-		if contains(String(fieldname), "click")
-			if getfield(options, Symbol("include_"*String(fieldname)))
-				𝐗add = click_inputs(Φclick, trials, laterality=fieldname)
-				𝐗 = hcat(𝐗, 𝐗add)
-				N = size(𝐗add,2)
-				indices = vcat(indices, [k .+ (1:N)])
-				k += N
-			end
+	𝐗 = Array{typeof(1.0)}(undef,T,0)
+	setnames = SPGLM.basis_function_sets()
+	basissets = collect(SPGLM.BasisFunctionSet(setname, options) for setname in setnames)
+	indices = UnitRange{Int}[]
+	k = 0
+	for inputname in fieldnames(SPGLM.WeightIndices)
+		if getfield(options, Symbol("input_"*String(inputname)))
+			basisset = basissets[setnames .== SPGLM.match_input_to_basis(inputname)]
+			𝐗add = SPGLM.inputs_each_timestep(basisset[1], inputname, trials)
+			𝐗 = hcat(𝐗, 𝐗add)
+			N = size(𝐗add,2)
+			indices = vcat(indices, [k .+ (1:N)])
+			k += N
+		else
+			indices = vcat(indices, [1:0])
 		end
-		if contains(String(fieldname), "movement")
-			if getfield(options, Symbol("include_"*String(fieldname)))
-				𝐗add = movement_inputs(Φmovement, trials, laterality=fieldname)
-				𝐗 = hcat(𝐗, 𝐗add)
-				N = size(𝐗add,2)
-				indices = vcat(indices, [k .+ (1:N)])
-				k += N
-			end
-		end
-		if contains(String(fieldname), "reference")
-			if getfield(options, Symbol("include_"*String(fieldname)))
-				𝐗add = reference_inputs(Φmovement, trials, laterality=fieldname)
-				𝐗 = hcat(𝐗, 𝐗add)
-				N = size(𝐗add,2)
-				indices = vcat(indices, [k .+ (1:N)])
-				k += N
-			end
-		end
-
 	end
-	𝐗stereoclick = options.include_stereoclick ? click_inputs(Φclick, trials, laterality=2) : empty
-	𝐗leftclick = click_inputs(Φclick, trials, laterality= -1)
-	𝐗rightclick = click_inputs(Φclick, trials, laterality= 1)
-	𝐗leftchoice = movement_inputs(Φmovement, trials, laterality= -1)
-	𝐗rightchoice = movement_inputs(Φmovement, trials, laterality= 1)
-	𝐗fixation = fixation_inputs(Φfixation, trials)
-	𝐗postspike = postspike_inputs(Φpostspike, trialdurations, 𝐲)
-	𝐗=hcat(𝐗postspike, 𝐗drift, 𝐗fixation, 𝐗stereoclick, 𝐗leftclick, 𝐗rightclick, 𝐗leftchoice, 𝐗rightchoice)
-
-	𝐔poststereoclick = poststereoclickbasis(Φpoststereoclick, trialdurations)
-	𝐔premovement = premovementbasis(movementtimesteps, Φpremovement, trialdurations)
-	𝐲 = vcat((trial.spiketrains[n] for trial in trials)...)
-	Φdrift, 𝐔drift = drift_design_matrix(options, stereoclick_times_s, trialdurations, 𝐲)
-	𝐔postspike = spikehistorybasis(Φpostspike, trialdurations, 𝐲)
-	𝐗=hcat(𝐔drift, 𝐔postspike, 𝐔poststereoclick, 𝐔premovement, 𝐔postphotostimulus, 𝐕)
-	indices𝐮 = Indices𝐮(size(𝐔drift,2), size(Φpostspike,2), size(Φpoststereoclick,2), size(Φpremovement,2), size(Φpostphotostimulus,2))
-	glmθ = GLMθ(indices𝐮, size(𝐕,2), options)
-	Model(options=options,
-			Φdrift=Φdrift,
-			Φpostspike=Φpostspike,
-			Φpoststereoclick=Φpoststereoclick,
-			Φpremovement=Φpremovement,
+	weightindices = SPGLM.WeightIndices(indices...)
+	SPGLM.Model(options=options,
+			basissets=basissets,
+			trials=trials,
+			weightindices = weightindices,
 			𝐗=𝐗,
 			𝐲=𝐲)
 end
-Model(options::Options) = Model(options, loadtrials(options))
