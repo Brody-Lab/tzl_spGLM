@@ -17,7 +17,10 @@ using   CSV,
 import  StatsBase
 
 include("types.jl")
-include("load.jl")
 include("basisfunctions.jl")
+include("inverselink.jl")
+include("learnparameters.jl")
+include("load.jl")
 include("modelinputs.jl")
+include("Poisson.jl")
 end

@@ -66,6 +66,10 @@ Model settings
 	input_rightmovement::TB = true
 	input_postspike::TB = true
 	input_time_in_trial::TB = true; @assert input_time_in_trial
+	"maximum number of iterations for learning the parameters"
+	opt_iterations_parameters::TI = 20
+	"maximum number of iterations for learning the hyperparameters "
+	opt_iterations_hyperparameters::TI = 3
 	"absolute path of the folder where the model output, including the summary and predictions, are saved"
 	outputpath::TS=""
 	"event on each trial aligned to which spikes are counted"
@@ -144,7 +148,7 @@ Poisson generalized linear model
 					WI<:WeightIndices,
 					VI<:Vector{<:Integer}}
 	"precision parameter of the Gaussian prior on weights"
-	α::VF=fill(NaN,1)
+	a::VF=zeros(1)
     "fixed hyperparameters"
     options::TO
 	"set of basis functions"
