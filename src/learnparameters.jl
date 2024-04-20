@@ -1,23 +1,34 @@
 """
-	maximizeposterior!(model)
-
-Find the parameters of a Poisson GLM that gives the mode of the posterior distribution
+	maximizeposterior!(memory, model)
 
 MODIFIED ARGUMENT
+-`memory`: a struct pointing to pre-allocated memory for model optimization
 -`model`: a struct containing the data, hyperparameters, and parameters. Only the parameters stored in the vector `𝐰` are modified
+
+RETURN
+-a struct containing the results of the optimization (an instance of the composite type `Optim.MultivariateOptimizationResults`)
 """
-function maximizeposterior!(model::Model; show_trace::Bool=true)
-	x₀ = copy(model.𝐰)
-	N = length(x₀)
-	ℓ = fill(NaN,1)
-	∇ℓ = fill(NaN, N)
-	∇∇ℓ = fill(NaN, N, N)
-	f(x) = neglogposterior!(model,ℓ,∇ℓ,∇∇ℓ,x)
-	∇f!(∇,x) = ∇neglogposterior!(∇,model,ℓ,∇ℓ,∇∇ℓ,x)
-	∇∇f!(∇∇,x) = ∇∇neglogposterior!(∇∇,model,ℓ,∇ℓ,∇∇ℓ,x)
-    results = Optim.optimize(f, ∇f!, ∇∇f!, x₀, NewtonTrustRegion(), Optim.Options(show_trace=show_trace, iterations=model.options.opt_iterations_parameters))
+function maximizeposterior!(memory::MemoryForOptimization, model::Model)
+	memory.ℓ[1] = NaN
+	f(x) = neglogposterior!(memory,model,x)
+	∇f!(∇,x) = ∇neglogposterior!(∇,memory,model,x)
+	∇∇f!(∇∇,x) = ∇∇neglogposterior!(∇∇,memory,model,x)
+    results = Optim.optimize(f, ∇f!, ∇∇f!, copy(model.𝐰), NewtonTrustRegion(), Optim.Options(show_trace=true, iterations=model.options.opt_iterations_parameters))
 	model.𝐰 .= Optim.minimizer(results)
-	return nothing
+	return results
+end
+maximizeposterior!(model::Model) = maximizeposterior!(MemoryForOptimization(model),model)
+
+"""
+	MemoryForOptimization(model)
+
+RETURN a struct pointing to pre-allocated memory for model optimization
+"""
+function MemoryForOptimization(model::Model)
+	N = length(model.𝐰)
+	MemoryForOptimization(ℓ = fill(NaN,1),
+						  ∇ℓ = fill(NaN, N),
+						  ∇∇ℓ = fill(NaN, N, N))
 end
 
 """
@@ -35,10 +46,10 @@ MODIFIED ARGUMENT
 UNMODIFIED ARGUMENT
 -`x`: parameter values
 """
-function ∇∇neglogposterior!(∇∇::Matrix{<:Real}, model::Model, ℓ::Vector{<:Real}, ∇ℓ::Vector{<:Real}, ∇∇ℓ::Matrix{<:Real}, x::Vector{<:Real})
-	∇∇logposterior!(model,ℓ,∇ℓ,∇∇ℓ,x)
+function ∇∇neglogposterior!(∇∇::Matrix{<:Real}, memory::MemoryForOptimization, model::Model, x::Vector{<:Real})
+	∇∇logposterior!(memory,model,x)
 	for i in eachindex(∇∇)
-		∇∇[i] = -∇∇ℓ[i]
+		∇∇[i] = -memory.∇∇ℓ[i]
 	end
 	return nothing
 end
@@ -46,10 +57,10 @@ end
 """
 Gradient of the negative of the log-posterior
 """
-function ∇neglogposterior!(∇::Vector{<:Real}, model::Model, ℓ::Vector{<:Real}, ∇ℓ::Vector{<:Real}, ∇∇ℓ::Matrix{<:Real}, x::Vector{<:Real})
-	∇∇logposterior!(model,ℓ,∇ℓ,∇∇ℓ,x)
+function ∇neglogposterior!(∇::Vector{<:Real}, memory::MemoryForOptimization, model::Model, x::Vector{<:Real})
+	∇∇logposterior!(memory,model,x)
 	for i in eachindex(∇)
-		∇[i] = -∇ℓ[i]
+		∇[i] = -memory.∇ℓ[i]
 	end
 	return nothing
 end
@@ -57,45 +68,44 @@ end
 """
 Negative of the log-posterior
 """
-function neglogposterior!(model::Model, ℓ::Vector{<:Real}, ∇ℓ::Vector{<:Real}, ∇∇ℓ::Matrix{<:Real}, x::Vector{<:Real})
-	∇∇logposterior!(model,ℓ,∇ℓ,∇∇ℓ,x)
-	-ℓ[1]
+function neglogposterior!(memory::MemoryForOptimization, model::Model, x::Vector{<:Real})
+	∇∇logposterior!(memory,model,x)
+	-memory.ℓ[1]
 end
 
 """
 Hessian of the log-posterior
 """
-function ∇∇logposterior!(model::Model, ℓ::Vector{<:Real}, ∇ℓ::Vector{<:Real}, ∇∇ℓ::Matrix{<:Real}, x::Vector{<:Real})
-	if (x != model.𝐰) || isnan(ℓ[1])
+function ∇∇logposterior!(memory::MemoryForOptimization, model::Model, x::Vector{<:Real})
+	if (x != model.𝐰) || isnan(memory.ℓ[1])
 		for i in eachindex(x)
 			model.𝐰[i] = x[i]
 		end
-		∇∇logposterior!(ℓ,∇ℓ,∇∇ℓ,model)
+		∇∇logposterior!(memory,model)
 	end
 	return nothing
 end
 
 """
-	∇∇logposterior!(ℓ, ∇ℓ, ∇∇ℓ, model)
+	∇∇logposterior!(memory, model)
 
 Log-posterior and its gradient and hessian
 
 MODIFIED ARGUMENT
--`ℓ`: log of the posterior distribution evaluated at `model.𝐰`
--`∇ℓ`: first-order derivatives of the expectation
--`∇∇ℓ`: second-order derivatives of the expectation
+-`memory`: a struct pointing to pre-allocated memory for model optimization
 
 UNMODIFIED ARGUMENT
 -`model`: a struct containing the data, parameters, and hyperparamters
 """
-function ∇∇logposterior!(ℓ::Vector{<:Real}, ∇ℓ::Vector{<:Real}, ∇∇ℓ::Matrix{<:Real}, model::Model)
-	∇∇loglikelihood!(ℓ, ∇ℓ, ∇∇ℓ, model)
+function ∇∇logposterior!(memory::MemoryForOptimization, model::Model)
+	∇∇loglikelihood!(memory, model)
+	@unpack ℓ, ∇ℓ, ∇∇ℓ = memory
     @unpack 𝐰 = model
 	α = model.a[1]
-	ℓ[1] -= α*(𝐰⋅𝐰)
+	ℓ[1] -= 0.5α*(𝐰⋅𝐰)
 	for i in eachindex(∇ℓ)
-		∇ℓ[i] -= 2α*𝐰[i]
-	    ∇∇ℓ[i,i] -= 2α
+		∇ℓ[i] -= α*𝐰[i]
+	    ∇∇ℓ[i,i] -= α
 	end
 	return nothing
 end
@@ -103,7 +113,8 @@ end
 """
 Log-likelihood and its gradient and hessian
 """
-function ∇∇loglikelihood!(ℓ::Vector{<:Real}, ∇ℓ::Vector{<:Real}, ∇∇ℓ::Matrix{<:Real}, model::Model)
+function ∇∇loglikelihood!(memory::MemoryForOptimization, model::Model)
+	@unpack ℓ, ∇ℓ, ∇∇ℓ = memory
     @unpack 𝐗, 𝐰, 𝐲 = model
 	Δt = model.options.dt
 	𝐋 = 𝐗*𝐰

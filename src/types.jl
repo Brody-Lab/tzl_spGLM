@@ -148,7 +148,7 @@ Poisson generalized linear model
 					WI<:WeightIndices,
 					VI<:Vector{<:Integer}}
 	"precision parameter of the Gaussian prior on weights"
-	a::VF=zeros(1)
+	a::VF=rand(1)
     "fixed hyperparameters"
     options::TO
 	"set of basis functions"
@@ -162,5 +162,14 @@ Poisson generalized linear model
 	"Poisson observations"
 	𝐲::VI
 	"concatenated weights"
-	𝐰::VF=fill(NaN, size(𝐗,2))
+	𝐰::VF=rand(size(𝐗,2))
+end
+
+"""
+	MemoryForOptimization
+"""
+@with_kw struct MemoryForOptimization{VR<:Vector{<:Real}, MR<:Matrix{<:Real}}
+	ℓ::VR
+	∇ℓ::VR
+	∇∇ℓ::MR
 end

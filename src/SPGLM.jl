@@ -18,6 +18,7 @@ import  StatsBase
 
 include("types.jl")
 include("basisfunctions.jl")
+include("evidenceoptimization.jl")
 include("inverselink.jl")
 include("learnparameters.jl")
 include("load.jl")
