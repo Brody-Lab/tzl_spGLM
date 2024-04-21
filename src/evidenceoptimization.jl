@@ -8,48 +8,54 @@ This optimization procedure alternately fixes the hyperparameters and learn the 
 MODIFIED ARGUMENT
 -`model`: structure containing the parameters, hyperparameters, and data. The parameters and hyperparameters are updated.
 
+RETURN
+-`eo`: a struct containing the optimization trace
+
 OPTIONAL ARGUMENT
 -`verbose`: whether to display messages
 """
-function maximizeevidence!(model::Model; verbose::Bool=true, MAP_convergence_g_tol::Real = 1e-5)
-	best𝐸 = -Inf
-	best𝐰 = copy(model.𝐰)
-	best𝑎 = model.a[1]
+function maximizeevidence!(model::Model; verbose::Bool=true, MAP_convergence_g_tol::Real = 1e-4)
+	eo = EvidenceOptimization(model)
 	memory = MemoryForOptimization(model)
 	for i = 1:model.options.opt_iterations_hyperparameters
-		verbose && println("Evidence optimization iteration: ", i, ": maximizing the log-posterior.")
 	    Optim_results = maximizeposterior!(memory, model)
-		MAP_converged = getfield(Optim_results, :g_residual) < MAP_convergence_g_tol
-		if MAP_converged
+		eo.a[i] = model.a[1]
+		eo.MAP_g_residual[i] = getfield(Optim_results, :g_residual)
+		eo.𝐰[i] .= model.𝐰
+		verbose && println("Evidence optimization iteration: ", i, ": precision (a) = ",  model.a[1])
+		verbose && println("Evidence optimization iteration: ", i, ": norm of the residual gradient of the log-posterior (g_residual) = ",  eo.MAP_g_residual[i])
+		if eo.MAP_g_residual[i] < MAP_convergence_g_tol
 			verbose && println("Evidence optimization iteration: ", i, ": MAP optimization converged")
 		else
 			verbose && println("Evidence optimization iteration: ", i, ": MAP optimization did not converge, and therefore the optimization procedure is aborting.")
 			break
 		end
 		∇∇loglikelihood!(memory, model)
-		𝐸 = logevidence(memory, model)
-		if 𝐸 > best𝐸
-			verbose && println("Evidence optimization iteration: ", i, ": the current log-evidence ( ", 𝐸, ") is greater than its previous value (", best𝐸, ").")
-			best𝐸 = 𝐸
-			best𝐰 .= model.𝐰
-			best𝑎 = model.a[1]
-		else
-			verbose && println("Evidence optimization iteration: ", i, ": the current log-evidence ( ", 𝐸, ") is not greater than its previous value (", best𝐸, "), and therefore the optimization procedure is aborting.")
-			break
+		eo.𝐸[i] = logevidence(memory, model)
+		verbose && println("Evidence optimization iteration: ", i, ": approximate log-evidence (𝐸) = ", eo.𝐸[i])
+		if i < model.options.opt_iterations_hyperparameters
+			model.a[1] = maximizeevidence(memory, model)
 		end
-		if i==model.options.opt_iterations_hyperparameters
-			verbose && println("Evidence optimization iteration ", i, ": the last iteration has been reached, and the optimization procedure is aborting.")
-			break
-		end
-		anew = maximizeevidence(memory, model)
-		verbose && println("Evidence optimization iteration ", i, ": precision (a) ", model.a[1], " → ", anew)
-		model.a[1] = anew
 	end
-	if best𝐸 > -Inf
-		model.𝐰 .= best𝐰
-		model.a[1] = best𝑎[1]
+	if maximum(eo.𝐸) > -Inf
+		iteration = findmax(eo.𝐸)[2]
+		model.𝐰 .= eo.𝐰[iteration]
+		model.a[1] = eo.a[iteration]
 	end
-	return nothing
+	return eo
+end
+
+"""
+RETURN a struct containing the optimization trace
+"""
+function EvidenceOptimization(model::Model)
+	N = length(model.𝐰)
+	M = model.options.opt_iterations_hyperparameters
+	𝐰 = collect(fill(NaN,N) for i = 1:M)
+	EvidenceOptimization(a=fill(NaN,M),
+						𝐸=fill(-Inf,M),
+						MAP_g_residual=fill(NaN,M),
+						𝐰 = collect(fill(NaN,N) for i = 1:M))
 end
 
 """

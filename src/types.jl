@@ -115,7 +115,9 @@ A set of basis functions to parametrize a linear filter
 """
 @with_kw struct BasisFunctionSet{MF<:Matrix{<:AbstractFloat}, S<:Symbol, TARF<:AbstractRange{<:AbstractFloat}}
 	name::S
+	"matrix containing the values of the basis functions. Columns are different basis functions, rows are different time steps"
 	Φ::MF
+	"time steps in second aligned to the reference event"
 	timesteps_s::TARF
 end
 
@@ -169,7 +171,24 @@ end
 	MemoryForOptimization
 """
 @with_kw struct MemoryForOptimization{VR<:Vector{<:Real}, MR<:Matrix{<:Real}}
+	"log-likelihood or log-posterior"
 	ℓ::VR
+	"gradient"
 	∇ℓ::VR
+	"hessian"
 	∇∇ℓ::MR
+end
+
+"""
+	EvidenceOptimization
+"""
+@with_kw struct EvidenceOptimization{VR<:Vector{<:Real}, VVR<:Vector{<:Vector{<:Real}}}
+	"precision used for each iteration of MAP optimization"
+	a::VR
+	"approximate log-evidence evaluated at the end of each MAP optimization"
+	𝐸::VR
+	"Euclidean norm of gradient of the log posterior at the end of each MAP optimization"
+	MAP_g_residual::VR
+	"MAP parameters"
+	𝐰::VVR
 end
