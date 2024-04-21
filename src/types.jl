@@ -72,6 +72,8 @@ Model settings
 	opt_iterations_hyperparameters::TI = 3
 	"maximum number of iterations for learning the hyperparameters "
 	opt_MAP_convergence_g_tol::TI = 3
+	"number of samples used to compute the expected emissions and peri-event time histograms"
+	sampling_N::TI = 100
 	"absolute path of the folder where the model output, including the summary and predictions, are saved"
 	outputpath::TS=""
 	"event on each trial aligned to which spikes are counted"
@@ -110,6 +112,8 @@ Sensory stimuli, behavior, and spike train on each trial
 	ypre::TVI
 	"number of time steps"
 	T::TI = length(timesteps_s)
+	"number of time steps before the trial used for estimating the post-spike filter"
+	Tpre::TI = length(ypre)
 end
 
 """
@@ -195,4 +199,12 @@ end
 	MAP_g_residual::VR
 	"MAP parameters"
 	𝐰::VVR
+end
+
+"""
+	Characterization
+"""
+@with_kw struct Characterization{VVR<:Vector{<:Vector{<:Real}}}
+	LL::VVR
+	inferredrate::VVR
 end

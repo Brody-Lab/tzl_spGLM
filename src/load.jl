@@ -61,7 +61,7 @@ function loadtrials(options::Options)
 	Na = floor(Int, options.time_in_trial_begin_s/options.dt)
 	Nb = ceil(Int, options.time_in_trial_end_s/options.dt)
 	binedges_s = (Na*options.dt):options.dt:(Nb*options.dt)
-	Npre = ceil(Int, options.bfs_postspike_end_s/options.dt)
+	Npre = ceil(Int, (options.bfs_postspike_end_s-options.bfs_postspike_begin_s)/options.dt)
 	pre_binedges = -Npre*options.dt:options.dt:0
 	spiketimes_s = vec(Cell["spiketimes_s"])
 	map(findall(trialindices)) do i
