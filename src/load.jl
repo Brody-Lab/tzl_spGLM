@@ -61,11 +61,14 @@ function loadtrials(options::Options)
 	Na = floor(Int, options.time_in_trial_begin_s/options.dt)
 	Nb = ceil(Int, options.time_in_trial_end_s/options.dt)
 	binedges_s = (Na*options.dt):options.dt:(Nb*options.dt)
+	Npre = ceil(Int, options.bfs_postspike_end_s/options.dt)
+	pre_binedges = -Npre*options.dt:options.dt:0
 	spiketimes_s = vec(Cell["spiketimes_s"])
 	map(findall(trialindices)) do i
 		reference_time_s = Trials["stateTimes"][options.reference_event][i]
 		hist = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ binedges_s), closed=:right)
 		y = hist.weights
+		ypre = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ pre_binedges), closed=:right).weights
 		@assert !isnan(Trials["stateTimes"]["cpoke_out"][i])
 		movement_timestep = ceil(Int, (Trials["stateTimes"]["cpoke_out"][i] - reference_time_s)/options.dt)
 		leftclicks_s = Trials["leftBups"][i] .+ Trials["stateTimes"]["clicks_on"][i] .- reference_time_s
@@ -90,7 +93,8 @@ function loadtrials(options::Options)
 				reference_time_s=reference_time_s,
 				timesteps_s=binedges_s[2:end],
 				trialindex=i,
-				y=y)
+				y=y,
+				ypre=ypre)
 	end
 end
 

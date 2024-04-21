@@ -70,6 +70,8 @@ Model settings
 	opt_iterations_parameters::TI = 20
 	"maximum number of iterations for learning the hyperparameters "
 	opt_iterations_hyperparameters::TI = 3
+	"maximum number of iterations for learning the hyperparameters "
+	opt_MAP_convergence_g_tol::TI = 3
 	"absolute path of the folder where the model output, including the summary and predictions, are saved"
 	outputpath::TS=""
 	"event on each trial aligned to which spikes are counted"
@@ -104,6 +106,8 @@ Sensory stimuli, behavior, and spike train on each trial
 	trialindex::TI
 	"spike trains"
 	y::TVI
+	"spike train before the trial used only as independent variable for estimating the post-spike filter and not as dependent variable"
+	ypre::TVI
 	"number of time steps"
 	T::TI = length(timesteps_s)
 end

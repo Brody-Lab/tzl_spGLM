@@ -125,6 +125,7 @@ function postspikeinputs(bfs::BasisFunctionSet, trials::Vector{<:Trial})
 		latency = ceil(Int, bfs.timesteps_s[1]-dt)
 		τ = 0
 		for trial in trials
+			Tpre = length(trial.ypre)
 			for t in findall(trial.y .> 0)
 				yₜ = trial.y[t]
 				t₀ = t+latency
@@ -134,7 +135,16 @@ function postspikeinputs(bfs::BasisFunctionSet, trials::Vector{<:Trial})
 					end
 				end
 			end
-			τ = τ + trial.T;
+			for t in findall(trial.ypre .> 0)
+				yₜ = trial.ypre[t]
+				j₀ = Tpre-t+1
+				for (i,j) in zip(1:trial.T, j₀:N)
+					for d = 1:D
+						𝐔[τ+i,d] += yₜ*bfs.Φ[j,d]
+					end
+				end
+			end
+			τ = τ + trial.T
 		end
 	end
 	return 𝐔

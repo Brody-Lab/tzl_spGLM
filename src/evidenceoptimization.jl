@@ -12,6 +12,7 @@ RETURN
 -`eo`: a struct containing the optimization trace
 
 OPTIONAL ARGUMENT
+-`MAP_convergence_g_tol`: maximum norm of the gradient at the end of the MAP optimization for convergence to be considered. A lack of convergence to the mode of the posterior distribution indicates that the Laplace approximation of the posterior distribution is inaccurate and the log-evidence cannot be accurately approximated using the approach in this module.
 -`verbose`: whether to display messages
 """
 function maximizeevidence!(model::Model; verbose::Bool=true, MAP_convergence_g_tol::Real = 1e-4)
