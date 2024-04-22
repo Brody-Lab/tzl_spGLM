@@ -1,8 +1,10 @@
 module SPGLM
 
-using   CSV,
+using   Bootstrap,
+        CSV,
         DataFrames,
         Distributions,
+        DSP,
         ForwardDiff,
         LinearAlgebra,
         LineSearches,
@@ -24,5 +26,7 @@ include("inverselink.jl")
 include("learnparameters.jl")
 include("load.jl")
 include("modelinputs.jl")
+include("perievent_time_histogram.jl")
 include("Poisson.jl")
+include("save.jl")
 end

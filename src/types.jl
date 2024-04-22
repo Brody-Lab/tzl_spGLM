@@ -72,6 +72,11 @@ Model settings
 	opt_iterations_hyperparameters::TI = 3
 	"maximum number of iterations for learning the hyperparameters "
 	opt_MAP_convergence_g_tol::TI = 3
+	"standard deviation of the causal Gaussian filter used to filter the peri-event time histograms (peth)"
+	peth_sigma_s_click::TF = 0.05
+	peth_sigma_s_movement::TF = 0.1
+	peth_sigma_s_postspike::TF = 0.1
+	peth_sigma_s_time_in_trial::TF = 0.05
 	"number of samples used to compute the expected emissions and peri-event time histograms"
 	sampling_N::TI = 100
 	"absolute path of the folder where the model output, including the summary and predictions, are saved"
@@ -202,9 +207,50 @@ end
 end
 
 """
+	PerieventTimeHistogram
+
+The mean across trials of a single condition (e.g. trials that ended with a left choice) of the filtered spike train of one neuron, and the estimated 95% confidence interval of the trial mean
+"""
+@with_kw struct PerieventTimeHistogram{S<:String, VF<:Vector{<:AbstractFloat}}
+	"condition"
+	condition::S
+	"estimate of the peri-event time histogram based on observed spike trains"
+	observed::VF
+	"estimate of the peri-event time histogram based on simulated spike trains"
+	predicted::VF
+	"event on each trial to which the histogram is aligned"
+	reference_event::S
+	"time, in seconds"
+	timesteps_s::VF
+end
+
+"""
+	PETHSet
+
+A set of peri-event time histogram of one neuron.
+"""
+@with_kw struct PETHSet{PETH<:PerieventTimeHistogram}
+	"average across trials that ended in a left choice, including both correct and incorrect trials"
+	leftchoice::PETH
+	"average across trials on which the aggregate evidence favored left and the reward is baited on the left"
+	leftevidence::PETH
+	"average across trials on which the animal made a left choice and the evidence was strongly leftward. Therefore, only correct trials are included. Evidence strength is defined by the generative log-ratio of click rates: `γ` ≡ log(right click rate) - log(left click rate). Strong left evidence evidence include trials for which γ < -2.25"
+	leftchoice_strong_leftevidence::PETH
+	"average across trials on which the animal made a left choice and the generatative `γ` < -2.25 && `γ` < 0"
+	leftchoice_weak_leftevidence::PETH
+	rightchoice::PETH
+	rightevidence::PETH
+	rightchoice_strong_rightevidence::PETH
+	rightchoice_weak_rightevidence::PETH
+	"average across all trials"
+	unconditioned::PETH
+end
+
+"""
 	Characterization
 """
-@with_kw struct Characterization{VVR<:Vector{<:Vector{<:Real}}}
+@with_kw struct Characterization{VVR<:Vector{<:Vector{<:Real}}, VPETH<:Vector{<:PerieventTimeHistogram}}
 	LL::VVR
 	inferredrate::VVR
+	peths::VPETH
 end

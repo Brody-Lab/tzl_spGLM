@@ -14,9 +14,10 @@ RETURN
 	Characterization(testmodel, trainingmodel)
 """
 function Characterization(model::Model)
+	inferredrate = inferrate(model)
 	Characterization(LL = loglikelihood_each_timestep(model),
-					 inferredrate = inferrate(model))
-
+					 inferredrate = inferredrate,
+					 peths = perievent_time_histograms(inferredrate,model))
 end
 
 """
