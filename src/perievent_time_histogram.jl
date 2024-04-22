@@ -10,7 +10,7 @@ ARGUMENT
 -`model`: a struct containing the data, hyperparameters, and parameters
 """
 function perievent_time_histograms(𝚲::Vector{<:Vector{<:AbstractFloat}}, model::Model)
-	reference_events = [model.options.reference_event; "movement"; "postspike"; "leftclick"; "rightclick"; "stereoclick"; "click"]
+	reference_events = [model.options.reference_event; "movement"; "leftclick"; "rightclick"; "stereoclick"; "click"]
 	peths = map(reference_events) do reference_event
 				perievent_time_histograms(𝚲,model,reference_event)
 			end
@@ -63,8 +63,8 @@ function perievent_time_histograms(𝚲::Vector{<:Vector{<:AbstractFloat}}, mode
 	Y = collect(trial.y for trial in model.trials)
 	peths = map(collect(fieldnames(SPGLM.PETHSet))) do condition
 		trialindices = collect(SPGLM.selecttrial(condition, trial) for trial in model.trials)
-		observed = SPGLM.align_and_average(reference_timesteps[trialindices], Na, Nb, Y[trialindices])
-		predicted = SPGLM.align_and_average(reference_timesteps[trialindices], Na, Nb, 𝚲[trialindices])
+		observed = SPGLM.align_and_average(reference_timesteps[trialindices], Na, Nb, Y[trialindices])./model.options.dt
+		predicted = SPGLM.align_and_average(reference_timesteps[trialindices], Na, Nb, 𝚲[trialindices])./model.options.dt
 		SPGLM.PerieventTimeHistogram(condition=String(condition),
 								observed=observed,
 							   	predicted=predicted,

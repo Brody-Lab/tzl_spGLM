@@ -161,23 +161,3 @@ function sample!(𝕪::Vector{<:Integer}, Δt::AbstractFloat, 𝐄𝐞::Vector{<
     end
 	return nothing
 end
-
-"""
-	save(characterization, folderpath)
-
-Save the characterizations of the model.
-
-Each field of the composite `characterization` is saved within a separate file, with the same name as that of the field, within a folder whose absolute path is specified by `folderpath`.
-"""
-function save(characterization::Characterization, folderpath::String)
-	if !isdir(folderpath)
-		mkdir(folderpath)
-		@assert isdir(folderpath)
-	end
-	for fieldname in fieldnames(Characterization)
-		filepath = joinpath(folderpath, String(fieldname)*".mat")
-		entry = getfield(characterization, fieldname)
-		dict = Dict(String(fieldname)=>entry)
-	    matwrite(filepath, dict)
-	end
-end
