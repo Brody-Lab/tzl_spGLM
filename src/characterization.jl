@@ -15,9 +15,33 @@ RETURN
 """
 function Characterization(model::Model)
 	inferredrate = inferrate(model)
+	kernels = convolutionkernels(model)
+	memory = MemoryForOptimization(model)
+	∇∇loglikelihood!(memory,model)
 	Characterization(LL = loglikelihood_each_timestep(model),
+					 hessian_loglikelihood = memory.∇∇ℓ,
 					 inferredrate = inferredrate,
+					 kernels = kernels,
 					 peths = perievent_time_histograms(inferredrate,model))
+end
+
+"""
+	convolutionkernels(model)
+
+RETURN a vector whose each element is an instance of type `Kernel`
+"""
+function convolutionkernels(model::Model)
+	inputnames = collect(fieldnames(typeof(model.weightindices)))
+	indices = collect(!isempty(getfield(model.weightindices, fieldname)) for fieldname in inputnames)
+	inputnames = inputnames[indices]
+	map(inputnames) do inputname
+		basisset = filter((basis)->match_input_to_basis(inputname)==basis.name, model.basissets)[1]
+		h = basisset.Φ*model.𝐰[getfield(model.weightindices, inputname)]
+		Kernel(basisname=String(basisset.name),
+				h=h,
+				inputname=String(inputname),
+				timesteps_s=collect(basisset.timesteps_s))
+	end
 end
 
 """

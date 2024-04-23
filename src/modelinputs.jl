@@ -82,20 +82,20 @@ function movementinputs(bfs::BasisFunctionSet, laterality::Real, trials::Vector{
 	∑T = sum(collect(trial.T for trial in trials))
 	𝐔 = zeros(∑T, D)
 	if D > 0
-		Na = sum(bfs.timesteps_s .< 0.0)
+		Na = sum(bfs.timesteps_s .<= 0.0)
 		Nb = N - Na
 		τ = 0
 		for trial in trials
 			if isnan(laterality) || (laterality==trial.choice)
 				Ta = sum(trial.timesteps_s .< 0.0)
 				Tb = trial.T - Ta
-				if Ta < (trial.movement_timestep-Na)
-					t₀ = trial.movement_timestep-Na-Ta+1
+				if trial.movement_timestep >= Na
+					t₀ = trial.movement_timestep-Na+1
 					for (t,j) in zip(t₀:trial.T, 1:N)
 						𝐔[τ+t,:] = bfs.Φ[j,:]
 					end
 				else
-					j₀ = Na + Ta - trial.movement_timestep + 1
+					j₀ = Na - trial.movement_timestep + 1
 					for (t,j) in zip(1:trial.T, j₀:N)
 						𝐔[τ+t,:] = bfs.Φ[j,:]
 					end

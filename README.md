@@ -4,9 +4,9 @@ Generalized linear model of the spike train of a neuron recorded in the Poisson 
 ## example
 
 ### Julia REPL
+The optimization procedure learns both the parameters (i.e. regressor weights) and a hyperparamer (precision of the Gaussian prior on the parameters, analogous to a L2 penalty coefficient):
 ```
-julia> using SPGLM, Random
-julia> Random.seed!(1234);
+julia> using SPGLM
 julia> csvpath = "/mnt/cup/people/zhihaol/Documents/tzluo/analyses/analysis_2024_04_22a_test_SPGLM/models.csv";
 julia> options = SPGLM.Options(csvpath);
 julia> trials = SPGLM.loadtrials(options);
@@ -87,3 +87,64 @@ julia> SPGLM.save(model)
 julia> SPGLM.save(eo, model.options.outputpath)
 julia> SPGLM.save(characterization, model.options.outputpath)
 ```
+
+### MATLAB command window
+Let's check whether the model actually fit the data, using utilities in [+SPGLM](/src/+SPGLM/) and [+TZL](https://github.com/Brody-Lab/tzluo/tree/master/%2BTZL)
+```
+>> analysispath = 'V:\Documents\tzluo\analyses\analysis_2024_04_23a_test_SPGLM'
+>> models = readtable(fullfile(analysispath, "models.csv"), 'delimiter', ',');
+>> models.outputpath = TZL.cup2windows(string(models.outputpath));
+>> load(fullfile(models.outputpath{1}, 'model.mat'))
+>> load(fullfile(models.outputpath{1}, 'characterization.mat'))
+>> peths = SPGLM.tabulatepeths(peths);
+>> kernels = SPGLM.tabulatekernels(kernels);
+```
+Plotting the peri-event time histograms (PETH), aligned to the rat's movement onset, and conditioned on whether it made a left or a right choice:
+
+```
+>> reference_event = "movement";
+>> conditions = ["leftchoice", "rightchoice"];
+>> SPGLM.stylizeaxes
+>> colors = get(gca, 'colororder');
+>> h = [];
+>> k = 0;
+>> for i = 1:numel(conditions)
+    index = peths.condition == conditions(i) & peths.reference_event == reference_event;
+    k =k + 1;
+    h(k) = plot(peths.timesteps_s{index}, peths.observed{index}, '-', 'color', colors(i,:));
+    k =k + 1;
+    h(k) = plot(peths.timesteps_s{index}, peths.predicted{index}, '-', ...
+        'linewidth', 1, 'color', colors(i,:));
+end
+>> xlabel(['time from ' char(reference_event) ' (s)'])
+>> ylabel('spikes/s')
+>> ylim(ylim.*[0,1])
+>> legend(h, {'left choice, observed', 'left choice, predicted', ...
+    'right choice, observed', 'right choice, predicted'}, 'location', 'northwest')
+```
+
+<img src="/example/analysis_2024_04_22a_test_SPGLM/peth_perimovement.svg" width = "400">
+
+The model captures the choice-dependent peri-movement neuronal activity by treating the moment of movement onset as a transient impulse and fits convolution filters aligned to the impulse. Separate convolution kernels are fit for different choices. 
+
+<img src="/example/analysis_2024_04_22a_test_SPGLM/kernel_perimovement.svg" width = "400">
+
+Using similar code as above to plot the PETH aligned to the onset of auditory click trains, which is always preceded by a left and right click being played simultaneously (i.e., a so-called "stereoclick"). The meaning of the color and the line thickness are as above
+
+```
+>> reference_event = "stereoclick";
+```
+
+<img src="/example/analysis_2024_04_22a_test_SPGLM/peth_stereoclick.svg" width = "400">
+
+Or aligned to the onset of nose fixation
+
+```
+>> reference_event = "cpoke_in";
+```
+
+<img src="/example/analysis_2024_04_22a_test_SPGLM/peth_perifixation.svg" width = "400">
+
+We can also check whether we capture the response aligned to either a left or a right click (also called the "click-triggered average").
+
+<img src="/example/analysis_2024_04_22a_test_SPGLM/peth_click.svg" width = "400">

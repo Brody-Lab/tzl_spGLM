@@ -31,12 +31,12 @@ Model settings
 	bfs_click_end_s::TF=0.5; @assert bfs_click_end_s > bfs_click_begin_s
 	bfs_click_ends0::TB=true
 	"movement-aligned linear filter"
-	bfs_movement_begin_s::TF = -1.0
-	bfs_movement_end_s::TF = 0.5; @assert bfs_movement_end_s > bfs_movement_begin_s
+	bfs_movement_begin_s::TF = -2.0
+	bfs_movement_end_s::TF = 0.3; @assert bfs_movement_end_s > bfs_movement_begin_s
 	bfs_movement_begins0::TB=true
 	bfs_movement_ends0::TB=false
-	bfs_movement_D::TI=5
-	bfs_movement_distortion::TF=0.2
+	bfs_movement_D::TI=6
+	bfs_movement_distortion::TF=0.0
 	bfs_movement_distortion_s::TF=0.0
 	"postspike filter"
 	bfs_postspike_begin_s::TF=0.01
@@ -247,10 +247,22 @@ A set of peri-event time histogram of one neuron.
 end
 
 """
+	Kernel
+"""
+@with_kw struct Kernel{VF<:Vector{<:AbstractFloat}, S<:String}
+	basisname::S
+	h::VF
+	inputname::S
+	timesteps_s::VF
+end
+
+"""
 	Characterization
 """
-@with_kw struct Characterization{VVR<:Vector{<:Vector{<:Real}}, VPETH<:Vector{<:PerieventTimeHistogram}}
+@with_kw struct Characterization{VVR<:Vector{<:Vector{<:Real}}, VK<:Vector{<:Kernel}, VPETH<:Vector{<:PerieventTimeHistogram}, MF<:Matrix{<:AbstractFloat}}
 	LL::VVR
+	hessian_loglikelihood::MF
 	inferredrate::VVR
+	kernels::VK
 	peths::VPETH
 end

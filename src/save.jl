@@ -11,7 +11,9 @@ end
 
 function dictionary(characterization::Characterization)
     Dict("LL"=>characterization.LL,
+          "hessian_loglikelihood"=>characterization.hessian_loglikelihood,
           "inferredrate"=>characterization.inferredrate,
+          "kernels"=>map(dictionary, characterization.kernels),
           "peths"=>map(dictionary, characterization.peths))
 end
 

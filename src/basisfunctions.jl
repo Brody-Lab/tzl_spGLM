@@ -31,6 +31,15 @@ function match_input_to_basis(inputname::Symbol)
 end
 
 """
+RETURN a set of basis functions matching the name of an input
+
+ARGUMENT
+-`basissets`: a set of basis functions
+-`inputname`: a Symbol indicating the name of an input
+"""
+match_input_to_basis(basissets::Vector{<:BasisFunctionSet}, inputname::Symbol) = filter((basis)->match_input_to_basis(inputname)==basis.name, basissets)
+
+"""
 	BasisFunctionSet(setname, options)
 
 RETURN a struct containing the values of a set of basis functions

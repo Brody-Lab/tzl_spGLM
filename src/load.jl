@@ -70,9 +70,10 @@ function loadtrials(options::Options)
 		y = hist.weights
 		ypre = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ pre_binedges), closed=:right).weights
 		@assert !isnan(Trials["stateTimes"]["cpoke_out"][i])
-		movement_timestep = ceil(Int, (Trials["stateTimes"]["cpoke_out"][i] - reference_time_s)/options.dt)
-		leftclicks_s = Trials["leftBups"][i] .+ Trials["stateTimes"]["clicks_on"][i] .- reference_time_s
-		rightclicks_s = Trials["rightBups"][i] .+ Trials["stateTimes"]["clicks_on"][i] .- reference_time_s
+		t₀ = reference_time_s + binedges_s[1]
+		movement_timestep = ceil(Int, (Trials["stateTimes"]["cpoke_out"][i] - t₀)/options.dt)
+		leftclicks_s = Trials["leftBups"][i] .+ Trials["stateTimes"]["clicks_on"][i] .- t₀
+		rightclicks_s = Trials["rightBups"][i] .+ Trials["stateTimes"]["clicks_on"][i] .- t₀
 		if typeof(leftclicks_s)<:AbstractFloat
 			leftclicks_s = [leftclicks_s]
 		end
