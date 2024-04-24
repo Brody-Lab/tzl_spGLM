@@ -55,8 +55,17 @@ ARGUMENT
 function loadtrials(options::Options)
 	matfile = read(matopen(options.datapath))
 	Cell = matfile["Cell"]
-	Trials = matfile["Trials"]
-	trialindices = (.!Trials["violated"]) .& (Trials["trial_type"] .== "a") .& (Trials["stateTimes"]["cpoke_out"] .> Trials["stateTimes"]["clicks_on"])
+	if haskey(matfile, "Trials")
+		Trials = matfile["Trials"]
+	else
+		Trials = read(matopen(Cell["Trials_path"]))["Trials"]
+	end
+	trialindices = (.!Trials["violated"]) .&
+				   	(Trials["trial_type"] .== "a") .&
+				   	.!isnan.(Trials["pokedR"]) .&
+				   	.!isnan.(Trials["stateTimes"]["cpoke_in"]) .&
+					.!isnan.(Trials["stateTimes"]["cpoke_out"]) .&
+					.!isnan.(Trials["stateTimes"]["spoke"])
 	trialindices = vec(trialindices)
 	Na = floor(Int, options.time_in_trial_begin_s/options.dt)
 	Nb = ceil(Int, options.time_in_trial_end_s/options.dt)
@@ -75,6 +84,8 @@ function loadtrials(options::Options)
 			lasttimestep = floor(Int, (Trials["stateTimes"][options.trim_after_event][i]-reference_time_s)/options.dt)
 			if lasttimestep < default_N
 				binedges_s = default_binedges_s[1:lasttimestep]
+			else
+				binedges_s = default_binedges_s
 			end
 		else
 			binedges_s = default_binedges_s

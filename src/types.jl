@@ -25,8 +25,8 @@ Model settings
 	"click-aligned linear filter"
 	bfs_click_begin_s::TF= 0.01
 	bfs_click_begins0::TB=true
-	bfs_click_D::TI=5
-	bfs_click_distortion::TF=1.0
+	bfs_click_D::TI=4
+	bfs_click_distortion::TF=0.2
 	bfs_click_distortion_s::TF=0.03
 	bfs_click_end_s::TF=0.5; @assert bfs_click_end_s > bfs_click_begin_s
 	bfs_click_ends0::TB=true
@@ -57,7 +57,7 @@ Model settings
 	"time in trial aligned to the reference event"
 	bfs_time_in_trial_begins0::TB=false
 	bfs_time_in_trial_ends0::TB=false
-	bfs_time_in_trial_D::TI=5
+	bfs_time_in_trial_D::TI=4
 	bfs_time_in_trial_distortion::TF=0.2
 	bfs_time_in_trial_distortion_s::TF=0.0
 	"""

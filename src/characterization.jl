@@ -103,9 +103,9 @@ The first element of the vector corresponds to the first time step after the spi
 function postspikefilter(model::Model)
 	Tpre = ceil(Int, (model.options.bfs_postspike_end_s-model.options.bfs_postspike_begin_s)/model.options.dt)
 	𝐡 = zeros(Tpre)
-	index = findall((set)->set.name==:postspike, model.basissets)
-	if length(index)==1
-		𝐡 += model.basissets[index[1]].Φ*model.𝐰[model.weightindices.postspike]
+	index = findfirst((set)->set.name==:postspike, model.basissets)
+	if !isempty(model.weightindices.postspike)
+		𝐡 += model.basissets[index].Φ*model.𝐰[model.weightindices.postspike]
 	end
 	𝐡
 end
