@@ -60,12 +60,25 @@ function loadtrials(options::Options)
 	trialindices = vec(trialindices)
 	Na = floor(Int, options.time_in_trial_begin_s/options.dt)
 	Nb = ceil(Int, options.time_in_trial_end_s/options.dt)
-	binedges_s = (Na*options.dt):options.dt:(Nb*options.dt)
+	default_binedges_s = (Na*options.dt):options.dt:(Nb*options.dt)
+	default_N = length(default_binedges_s)
 	Npre = ceil(Int, (options.bfs_postspike_end_s-options.bfs_postspike_begin_s)/options.dt)
 	pre_binedges = -Npre*options.dt:options.dt:0
 	spiketimes_s = vec(Cell["spiketimes_s"])
 	map(findall(trialindices)) do i
-		reference_time_s = Trials["stateTimes"][options.reference_event][i]
+		if options.reference_event == "stereoclick"
+			reference_time_s = Trials["leftBups"][i][1] + Trials["stateTimes"]["clicks_on"][i]
+		else
+			reference_time_s = Trials["stateTimes"][options.reference_event][i]
+		end
+		if !isempty(options.trim_after_event)
+			lasttimestep = floor(Int, (Trials["stateTimes"][options.trim_after_event][i]-reference_time_s)/options.dt)
+			if lasttimestep < default_N
+				binedges_s = default_binedges_s[1:lasttimestep]
+			end
+		else
+			binedges_s = default_binedges_s
+		end
 		hist = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ binedges_s), closed=:right)
 		y = hist.weights
 		ypre = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ pre_binedges), closed=:right).weights
@@ -84,6 +97,7 @@ function loadtrials(options::Options)
 		stereoclick_timestep = ceil(Int, leftclicks_s[1]/options.dt)
 		leftclicks_timestep = ceil.(Int, leftclicks_s[2:end]./options.dt)
 		rightclicks_timestep = ceil.(Int, rightclicks_s[2:end]./options.dt)
+		response_timestep = ceil(Int, (Trials["stateTimes"]["spoke"][i] - t₀)/options.dt)
 		clicks_timestep = [stereoclick_timestep; leftclicks_timestep; rightclicks_timestep]
 		clicks_source = [2; zeros(Int, length(leftclicks_timestep)); ones(Int, length(rightclicks_timestep))]
 		Trial(choice = Trials["pokedR"][i] == 1,
@@ -92,6 +106,7 @@ function loadtrials(options::Options)
 				γ = Trials["gamma"][i],
 				movement_timestep = movement_timestep,
 				reference_time_s=reference_time_s,
+				response_timestep = response_timestep,
 				timesteps_s=binedges_s[2:end],
 				trialindex=i,
 				y=y,
@@ -131,8 +146,8 @@ function Model(options::Options, trials::Vector{<:Trial})
 	k = 0
 	for inputname in fieldnames(SPGLM.WeightIndices)
 		if getfield(options, Symbol("input_"*String(inputname)))
-			basisset = basissets[setnames .== SPGLM.match_input_to_basis(inputname)]
-			𝐗add = SPGLM.inputs_each_timestep(basisset[1], inputname, trials)
+			basisset = first(basissets[setnames .== SPGLM.match_input_to_basis(inputname)])
+			𝐗add = SPGLM.inputs_each_timestep(basisset, inputname, trials)
 			𝐗 = hcat(𝐗, 𝐗add)
 			N = size(𝐗add,2)
 			indices = vcat(indices, [k .+ (1:N)])

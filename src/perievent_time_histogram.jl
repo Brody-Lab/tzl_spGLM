@@ -10,7 +10,11 @@ ARGUMENT
 -`model`: a struct containing the data, hyperparameters, and parameters
 """
 function perievent_time_histograms(𝚲::Vector{<:Vector{<:AbstractFloat}}, model::Model)
-	reference_events = [model.options.reference_event; "movement"; "leftclick"; "rightclick"; "stereoclick"; "click"]
+	reference_events = [model.options.reference_event; "movement"; "stereoclick"]
+	for event in ["leftclick";  "rightclick"; "response"; "leftresponse"; "rightresponse"]
+		getfield(model.options, Symbol("input_"*event)) && (reference_events = vcat(reference_events, event))
+	end
+	reference_events = unique(reference_events)
 	peths = map(reference_events) do reference_event
 				perievent_time_histograms(𝚲,model,reference_event)
 			end
@@ -29,6 +33,9 @@ function perievent_time_histograms(𝚲::Vector{<:Vector{<:AbstractFloat}}, mode
 	elseif reference_event=="movement"
 		basisindex = first(findall((set)->set.name==:movement, model.basissets))
 		reference_timesteps = collect([trial.movement_timestep] for trial in model.trials)
+	elseif reference_event=="response"
+		basisindex = first(findall((set)->set.name==:response, model.basissets))
+		reference_timesteps = collect([trial.response_timestep] for trial in model.trials)
 	elseif reference_event=="postspike"
 		basisindex = first(findall((set)->set.name==:postspike, model.basissets))
 		ymax = maximum(model.𝐲)

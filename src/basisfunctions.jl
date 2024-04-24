@@ -6,7 +6,7 @@ RETURN a vector of symbols indicating the standard collection of basis sets
 No ARGUMENT
 """
 function basis_function_sets()
-	[:click, :movement, :postspike, :time_in_trial]
+	[:click, :movement, :postspike, :response, :time_in_trial]
 end
 
 """
@@ -19,6 +19,8 @@ ARGUMENT: a Symbol indicating the name of an input
 function match_input_to_basis(inputname::Symbol)
 	if (inputname == :movement) || (inputname == :leftmovement) || (inputname == :rightmovement)
 		:movement
+	elseif (inputname == :response) || (inputname == :leftresponse) ||(inputname == :rightresponse)
+		:response
 	elseif (inputname == :click) || (inputname == :leftclick) || (inputname == :rightclick)
 		:click
 	elseif inputname == :postspike
@@ -49,8 +51,13 @@ ARGUMENT
 -`options`: a struct containing the fixed hyperparameters
 """
 function BasisFunctionSet(setname::Symbol, options::Options)
-	begin_s = getfield(options, Symbol("bfs_"*String(setname)*"_begin_s"))
-	end_s = getfield(options, Symbol("bfs_"*String(setname)*"_end_s"))
+	if setname==:time_in_trial
+		begin_s = getfield(options, :time_in_trial_begin_s)
+		end_s = getfield(options, :time_in_trial_end_s)
+	else
+		begin_s = getfield(options, Symbol("bfs_"*String(setname)*"_begin_s"))
+		end_s = getfield(options, Symbol("bfs_"*String(setname)*"_end_s"))
+	end
 	begin_s = floor(begin_s/options.dt)*options.dt
 	end_s = ceil(end_s/options.dt)*options.dt
 	N = ceil(Int, (end_s-begin_s) / options.dt)

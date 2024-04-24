@@ -15,6 +15,12 @@ function inputs_each_timestep(bfs::BasisFunctionSet, inputname::Symbol, trials::
 		movementinputs(bfs, false, trials)
 	elseif inputname == :rightmovement
 		movementinputs(bfs, true, trials)
+	elseif inputname == :response
+		responseinputs(bfs, NaN, trials)
+	elseif inputname == :leftresponse
+		responseinputs(bfs, false, trials)
+	elseif inputname == :rightresponse
+		responseinputs(bfs, true, trials)
 	elseif inputname == :click
 		clickinputs(bfs, NaN, trials)
 	elseif inputname == :stereoclick
@@ -26,7 +32,7 @@ function inputs_each_timestep(bfs::BasisFunctionSet, inputname::Symbol, trials::
 	elseif inputname == :postspike
 		postspikeinputs(bfs, trials)
 	elseif inputname == :time_in_trial
-		vcat(collect(bfs.Φ for trial in trials)...)
+		vcat(collect(bfs.Φ[1:trial.T,:] for trial in trials)...)
 	else
 		error("unrecognized input")
 	end
@@ -96,6 +102,46 @@ function movementinputs(bfs::BasisFunctionSet, laterality::Real, trials::Vector{
 					end
 				else
 					j₀ = Na - trial.movement_timestep + 1
+					for (t,j) in zip(1:trial.T, j₀:N)
+						𝐔[τ+t,:] = bfs.Φ[j,:]
+					end
+				end
+			end
+			τ += trial.T
+		end
+	end
+	return 𝐔
+end
+
+"""
+	responseinputs(bfs, source, trials)
+
+RETURN columns of the design matrix containng inputs related to time of response completion
+
+ARGUMENT
+-`bfs`: a set of basis functions
+-`laterality`: whether the movement is leftward (`0`), rightward (`1`), or non-laterality(`NaN`)
+-`trials`: vector of trials
+"""
+function responseinputs(bfs::BasisFunctionSet, laterality::Real, trials::Vector{<:Trial})
+	N, D = size(bfs.Φ)
+	∑T = sum(collect(trial.T for trial in trials))
+	𝐔 = zeros(∑T, D)
+	if D > 0
+		Na = sum(bfs.timesteps_s .<= 0.0)
+		Nb = N - Na
+		τ = 0
+		for trial in trials
+			if isnan(laterality) || (laterality==trial.choice)
+				Ta = sum(trial.timesteps_s .< 0.0)
+				Tb = trial.T - Ta
+				if trial.response_timestep >= Na
+					t₀ = trial.response_timestep-Na+1
+					for (t,j) in zip(t₀:trial.T, 1:N)
+						𝐔[τ+t,:] = bfs.Φ[j,:]
+					end
+				else
+					j₀ = Na - trial.response_timestep + 1
 					for (t,j) in zip(1:trial.T, j₀:N)
 						𝐔[τ+t,:] = bfs.Φ[j,:]
 					end

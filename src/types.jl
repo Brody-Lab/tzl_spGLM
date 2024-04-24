@@ -38,6 +38,14 @@ Model settings
 	bfs_movement_D::TI=6
 	bfs_movement_distortion::TF=0.0
 	bfs_movement_distortion_s::TF=0.0
+	"response-aligned linear filter"
+	bfs_response_begin_s::TF = -0.5
+	bfs_response_end_s::TF = 0.01; @assert bfs_response_end_s > bfs_response_begin_s
+	bfs_response_begins0::TB=true
+	bfs_response_ends0::TB=false
+	bfs_response_D::TI=4
+	bfs_response_distortion::TF=0.0
+	bfs_response_distortion_s::TF=0.0
 	"postspike filter"
 	bfs_postspike_begin_s::TF=0.01
 	bfs_postspike_end_s::TF=0.25; @assert bfs_postspike_end_s > bfs_postspike_begin_s
@@ -47,8 +55,6 @@ Model settings
 	bfs_postspike_distortion::TF=1.0
 	bfs_postspike_distortion_s::TF=0.01
 	"time in trial aligned to the reference event"
-	bfs_time_in_trial_begin_s::TF=time_in_trial_begin_s
-	bfs_time_in_trial_end_s::TF=time_in_trial_end_s
 	bfs_time_in_trial_begins0::TB=false
 	bfs_time_in_trial_ends0::TB=false
 	bfs_time_in_trial_D::TI=5
@@ -65,6 +71,9 @@ Model settings
 	input_leftmovement::TB = true
 	input_rightmovement::TB = true
 	input_postspike::TB = true
+	input_response::TB = false
+	input_leftresponse::TB = false
+	input_rightresponse::TB = false
 	input_time_in_trial::TB = true; @assert input_time_in_trial
 	"maximum number of iterations for learning the parameters"
 	opt_iterations_parameters::TI = 20
@@ -72,17 +81,14 @@ Model settings
 	opt_iterations_hyperparameters::TI = 3
 	"maximum number of iterations for learning the hyperparameters "
 	opt_MAP_convergence_g_tol::TI = 3
-	"standard deviation of the causal Gaussian filter used to filter the peri-event time histograms (peth)"
-	peth_sigma_s_click::TF = 0.05
-	peth_sigma_s_movement::TF = 0.1
-	peth_sigma_s_postspike::TF = 0.1
-	peth_sigma_s_time_in_trial::TF = 0.05
 	"number of samples used to compute the expected emissions and peri-event time histograms"
 	sampling_N::TI = 100
 	"absolute path of the folder where the model output, including the summary and predictions, are saved"
 	outputpath::TS=""
 	"event on each trial aligned to which spikes are counted"
-	reference_event::TS="cpoke_in"
+	reference_event::TS="cpoke_in"; @assert (reference_event=="cpoke_in") ||  (reference_event=="stereoclick")
+	"event on each trial after which spikes are not counted"
+	trim_after_event::TS=""
 end
 
 """
@@ -103,10 +109,12 @@ Sensory stimuli, behavior, and spike train on each trial
 	clicks_timestep::TVI
 	"log of the ratio of the generative right and left click rate"
 	γ::TF
-	"time step of leaving the center port, relative to the time of the stereoclick, in seconds"
+	"time step of leaving the center port"
 	movement_timestep::TI
 	"time of the reference event"
 	reference_time_s::TF
+	"time step of entering the side port"
+	response_timestep::TI
 	"right edges of the time bins"
 	timesteps_s::TARF
 	"index of the trial in the trialset"
@@ -143,10 +151,13 @@ Indices of the encoding weights of the inputs
 	click::UI
 	leftclick::UI
 	leftmovement::UI
+	leftresponse::UI
 	movement::UI
 	postspike::UI
+	response::UI
 	rightclick::UI
 	rightmovement::UI
+	rightresponse::UI
 	time_in_trial::UI
 end
 
