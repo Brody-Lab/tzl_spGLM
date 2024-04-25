@@ -151,12 +151,22 @@ function Model(options::Options, trials::Vector{<:Trial})
 	𝐲 = vcat((trial.y for trial in trials)...)
 	T = length(𝐲)
 	𝐗 = Array{typeof(1.0)}(undef,T,0)
+	if !isempty(options.baseline_spikecounts_path)
+		𝐛 = baseline(options,trials)
+		𝐗 = hcat(𝐗, vcat((fill(b,trial.T) for (b,trial) in zip(𝐛,trials))...)) # using `hcat` for type
+	else
+		𝐛 = collect(NaN for trial in trials)
+	end
 	setnames = SPGLM.basis_function_sets()
 	basissets = collect(SPGLM.BasisFunctionSet(setname, options) for setname in setnames)
 	indices = UnitRange{Int}[]
 	k = 0
 	for inputname in fieldnames(SPGLM.WeightIndices)
-		if getfield(options, Symbol("input_"*String(inputname)))
+		if inputname==:baseline
+			i = Int(!isempty(options.baseline_spikecounts_path))
+			indices = vcat(indices, [k .+ (1:i)])
+			k += i
+		elseif getfield(options, Symbol("input_"*String(inputname)))
 			basisset = first(basissets[setnames .== SPGLM.match_input_to_basis(inputname)])
 			𝐗add = SPGLM.inputs_each_timestep(basisset, inputname, trials)
 			𝐗 = hcat(𝐗, 𝐗add)
@@ -169,6 +179,7 @@ function Model(options::Options, trials::Vector{<:Trial})
 	end
 	weightindices = SPGLM.WeightIndices(indices...)
 	SPGLM.Model(options=options,
+			baseline=𝐛,
 			basissets=basissets,
 			trials=trials,
 			weightindices = weightindices,

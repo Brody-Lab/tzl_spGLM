@@ -14,14 +14,26 @@ RETURN
 	Characterization(testmodel, trainingmodel)
 """
 function Characterization(model::Model)
-	inferredrate = inferrate(model)
+	𝐄𝐞 = SPGLM.externalinput(model)
+	𝐄𝐞sorted = collect(zeros(trial.T) for trial in model.trials)
+	τ = 0
+	for e in 𝐄𝐞sorted
+		T = length(e)
+		e .= 𝐄𝐞[τ .+ (1:T)]
+		τ = τ + T
+	end
+	# @assert vcat(𝐄𝐞sorted...) == 𝐄𝐞
+	inferredrate = inferrate(𝐄𝐞, model)
 	kernels = convolutionkernels(model)
 	memory = MemoryForOptimization(model)
 	∇∇loglikelihood!(memory,model)
 	Characterization(LL = loglikelihood_each_timestep(model),
+					 externalinput = 𝐄𝐞sorted,
 					 hessian_loglikelihood = memory.∇∇ℓ,
 					 inferredrate = inferredrate,
 					 kernels = kernels,
+					 observed_spiketrains = collect(trial.y for trial in model.trials),
+					 trialindices = collect(trial.trialindex for trial in model.trials),
 					 peths = perievent_time_histograms(inferredrate,model))
 end
 
@@ -32,6 +44,7 @@ RETURN a vector whose each element is an instance of type `Kernel`
 """
 function convolutionkernels(model::Model)
 	inputnames = collect(fieldnames(typeof(model.weightindices)))
+	inputnames = filter(!isequal(:baseline), inputnames)
 	indices = collect(!isempty(getfield(model.weightindices, fieldname)) for fieldname in inputnames)
 	inputnames = inputnames[indices]
 	map(inputnames) do inputname
@@ -118,8 +131,8 @@ RETURN a nested vector whose element `𝚲[i][t]` the log-likelihood on on time 
 OPTIONAL ARGUMENT
 -`nsamples`: number of samples to draw
 """
-function inferrate(model::Model; nsamples=model.options.sampling_N)
-	𝐄𝐞 = externalinput(model)
+inferrate(model::Model; nsamples=model.options.sampling_N) = inferrate(externalinput(model), model;nsamples=nsamples)
+function inferrate(𝐄𝐞::Vector{<:AbstractFloat}, model::Model; nsamples=model.options.sampling_N)
 	𝐡 = postspikefilter(model)
 	𝚲 = collect((zeros(trial.T) for trial in model.trials))
 	τ = 0

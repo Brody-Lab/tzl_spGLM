@@ -11,9 +11,12 @@ end
 
 function dictionary(characterization::Characterization)
     Dict("LL"=>characterization.LL,
+          "externalinput"=>characterization.externalinput,
           "hessian_loglikelihood"=>characterization.hessian_loglikelihood,
           "inferredrate"=>characterization.inferredrate,
           "kernels"=>map(dictionary, characterization.kernels),
+          "observed_spiketrains"=>characterization.observed_spiketrains,
+          "trialindices" => characterization.trialindices,
           "peths"=>map(dictionary, characterization.peths))
 end
 
@@ -24,6 +27,7 @@ function dictionary(basisset::BasisFunctionSet)
 end
 function dictionary(model::Model)
     Dict("a"=>model.a,
+          "baseline"=>model.baseline,
           "options"=>dictionary(model.options),
           "basissets"=>map(dictionary, model.basissets),
           "weightindices"=>Dict((String(fieldname)=>collect(getfield(model.weightindices,fieldname)) for fieldname in fieldnames(typeof(model.weightindices)))...),

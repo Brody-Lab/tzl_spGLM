@@ -19,8 +19,10 @@ using   Bootstrap,
 import  StatsBase
 
 include("types.jl")
+include("baseline.jl")
 include("basisfunctions.jl")
 include("characterization.jl")
+include("crossvalidation.jl")
 include("evidenceoptimization.jl")
 include("inverselink.jl")
 include("learnparameters.jl")

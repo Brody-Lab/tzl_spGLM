@@ -4,14 +4,16 @@
 Model settings
 """
 @with_kw struct Options{TB<:Bool, TF<:AbstractFloat, TI<:Integer, TS<:String}
-	"absolute path of the file containing the data"
-    datapath::TS=""
-	"duration of each timestep in seconds"
-    dt::TF=0.01
-	"Time, in second, after which spikes are included on each trial, aligned to the reference event on that trial."
-	time_in_trial_begin_s::TF=-0.5
-	"Time, in second, before which spikes are included on each trial, aligned to the reference event on that trial."
-	time_in_trial_end_s::TF=2.0; @assert time_in_trial_end_s > time_in_trial_begin_s
+	"""
+	hyperparameters for estimating the slowly-drift baseline across minutes in a session
+	"""
+	baseline_L2max::TF=1e10
+	baseline_L2min::TF=1e1
+	baseline_L2n::TI=10
+	"""
+	"absolute path to a `.MAT` file containing spike counts from a time period before the trial to be used to estimate the slowly drifting baseline. This file should contain a matrix of floats of size #trials-by-#neurons. All neurons were simultaneously recorded, and includes the spike counts from the neuron being analyzed as well."
+	"""
+	baseline_spikecounts_path::TS=""
 	"""
 	the hyperparameters below specify the parametrization of each set of basis functions
 		- `begin_s`: time relative to the event at which the kernel begins
@@ -60,6 +62,10 @@ Model settings
 	bfs_time_in_trial_D::TI=4
 	bfs_time_in_trial_distortion::TF=0.2
 	bfs_time_in_trial_distortion_s::TF=0.0
+	"absolute path of the file containing the data"
+	datapath::TS=""
+	"duration of each timestep in seconds"
+	dt::TF=0.01
 	"""
 	hyperparameters governing the inputs
 	"""
@@ -81,12 +87,18 @@ Model settings
 	opt_iterations_hyperparameters::TI = 3
 	"maximum number of iterations for learning the hyperparameters "
 	opt_MAP_convergence_g_tol::TI = 3
+	"absolute path to a `.MAT` file containing spike counts from a time period before the trial to be used to estimate the slowly drifting baseline. This file should contain a matrix of floats of size #trials-by-#neurons. All neurons were simultaneously recorded, and includes the spike counts from the neuron being analyzed as well."
+	pretrial_spikecounts_path::TS=""
 	"number of samples used to compute the expected emissions and peri-event time histograms"
 	sampling_N::TI = 100
 	"absolute path of the folder where the model output, including the summary and predictions, are saved"
 	outputpath::TS=""
 	"event on each trial aligned to which spikes are counted"
 	reference_event::TS="cpoke_in"; @assert (reference_event=="cpoke_in") ||  (reference_event=="stereoclick")
+	"time, in second, after which spikes are included on each trial, aligned to the reference event on that trial."
+	time_in_trial_begin_s::TF=-0.5
+	"time, in second, before which spikes are included on each trial, aligned to the reference event on that trial."
+	time_in_trial_end_s::TF=2.0; @assert time_in_trial_end_s > time_in_trial_begin_s
 	"event on each trial after which spikes are not counted"
 	trim_after_event::TS=""
 end
@@ -148,7 +160,9 @@ end
 Indices of the encoding weights of the inputs
 """
 @with_kw struct WeightIndices{UI<:UnitRange{<:Integer}}
+	baseline::UI
 	click::UI
+	stereoclick::UI
 	leftclick::UI
 	leftmovement::UI
 	leftresponse::UI
@@ -175,6 +189,8 @@ Poisson generalized linear model
 					VI<:Vector{<:Integer}}
 	"precision parameter of the Gaussian prior on weights"
 	a::VF=rand(1)
+	"inferred baseline firing rate on each trial"
+	baseline::VF
     "fixed hyperparameters"
     options::TO
 	"set of basis functions"
@@ -270,10 +286,13 @@ end
 """
 	Characterization
 """
-@with_kw struct Characterization{VVR<:Vector{<:Vector{<:Real}}, VK<:Vector{<:Kernel}, VPETH<:Vector{<:PerieventTimeHistogram}, MF<:Matrix{<:AbstractFloat}}
+@with_kw struct Characterization{VI<:Vector{<:Integer}, VVI<:Vector{<:Vector{<:Integer}}, VVR<:Vector{<:Vector{<:Real}}, VK<:Vector{<:Kernel}, VPETH<:Vector{<:PerieventTimeHistogram}, MF<:Matrix{<:AbstractFloat}}
 	LL::VVR
+	externalinput::VVR
 	hessian_loglikelihood::MF
 	inferredrate::VVR
 	kernels::VK
+	observed_spiketrains::VVI
+	trialindices::VI
 	peths::VPETH
 end

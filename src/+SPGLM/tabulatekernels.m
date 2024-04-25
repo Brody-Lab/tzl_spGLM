@@ -17,4 +17,6 @@ for name = field_names
         T.(name) = string(T.(name));
     end
 end
+T.inputname(T.inputname == "time_in_trial") = "fixation";
+
 T = struct2table(T);

@@ -21,7 +21,7 @@ function match_input_to_basis(inputname::Symbol)
 		:movement
 	elseif (inputname == :response) || (inputname == :leftresponse) ||(inputname == :rightresponse)
 		:response
-	elseif (inputname == :click) || (inputname == :leftclick) || (inputname == :rightclick)
+	elseif (inputname == :click) || (inputname == :leftclick) || (inputname == :rightclick) || (inputname == :stereoclick)
 		:click
 	elseif inputname == :postspike
 		:postspike
@@ -58,16 +58,16 @@ function BasisFunctionSet(setname::Symbol, options::Options)
 		begin_s = getfield(options, Symbol("bfs_"*String(setname)*"_begin_s"))
 		end_s = getfield(options, Symbol("bfs_"*String(setname)*"_end_s"))
 	end
+	D = getfield(options, Symbol("bfs_"*String(setname)*"_D"))
 	begin_s = floor(begin_s/options.dt)*options.dt
 	end_s = ceil(end_s/options.dt)*options.dt
 	N = ceil(Int, (end_s-begin_s) / options.dt)
-	D = getfield(options, Symbol("bfs_"*String(setname)*"_D"))
 	distortion_s = getfield(options, Symbol("bfs_"*String(setname)*"_distortion_s"))
 	ηindex = ceil(Int, (distortion_s-begin_s)/options.dt)
 	Φ = basisfunctions(N, D;
 					begins0=getfield(options, Symbol("bfs_"*String(setname)*"_begins0")),
 					ends0=getfield(options, Symbol("bfs_"*String(setname)*"_ends0")),
-                	η=getfield(options, Symbol("bfs_"*String(setname)*"_distortion")),
+					η=getfield(options, Symbol("bfs_"*String(setname)*"_distortion")),
 					ηindex = ηindex)
 	BasisFunctionSet(timesteps_s = (begin_s+options.dt):options.dt:end_s,
 					name=setname,

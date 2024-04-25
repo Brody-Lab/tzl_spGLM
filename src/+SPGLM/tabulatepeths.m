@@ -19,5 +19,5 @@ for name = field_names
         T.(name) = string(T.(name));
     end
 end
-
+T.reference_event(T.reference_event == "cpoke_in") = "fixation";
 T = struct2table(T);
