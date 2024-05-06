@@ -24,37 +24,11 @@ function Characterization(model::Model)
 	end
 	# @assert vcat(𝐄𝐞sorted...) == 𝐄𝐞
 	inferredrate = inferrate(𝐄𝐞, model)
-	kernels = convolutionkernels(model)
-	memory = MemoryForOptimization(model)
-	∇∇loglikelihood!(memory,model)
 	Characterization(LL = loglikelihood_each_timestep(model),
 					 externalinput = 𝐄𝐞sorted,
-					 hessian_loglikelihood = memory.∇∇ℓ,
 					 inferredrate = inferredrate,
-					 kernels = kernels,
 					 observed_spiketrains = collect(trial.y for trial in model.trials),
-					 trialindices = collect(trial.trialindex for trial in model.trials),
-					 peths = perievent_time_histograms(inferredrate,model))
-end
-
-"""
-	convolutionkernels(model)
-
-RETURN a vector whose each element is an instance of type `Kernel`
-"""
-function convolutionkernels(model::Model)
-	inputnames = collect(fieldnames(typeof(model.weightindices)))
-	inputnames = filter(!isequal(:baseline), inputnames)
-	indices = collect(!isempty(getfield(model.weightindices, fieldname)) for fieldname in inputnames)
-	inputnames = inputnames[indices]
-	map(inputnames) do inputname
-		basisset = filter((basis)->match_input_to_basis(inputname)==basis.name, model.basissets)[1]
-		h = basisset.Φ*model.𝐰[getfield(model.weightindices, inputname)]
-		Kernel(basisname=String(basisset.name),
-				h=h,
-				inputname=String(inputname),
-				timesteps_s=collect(basisset.timesteps_s))
-	end
+					 trialindices = collect(trial.trialindex for trial in model.trials))
 end
 
 """

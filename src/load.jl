@@ -158,7 +158,7 @@ function Model(options::Options, trials::Vector{<:Trial})
 		𝐛 = collect(NaN for trial in trials)
 	end
 	setnames = SPGLM.basis_function_sets()
-	basissets = collect(SPGLM.BasisFunctionSet(setname, options) for setname in setnames)
+	basissets = collect(BasisFunctionSet(setname, options) for setname in setnames)
 	indices = UnitRange{Int}[]
 	k = 0
 	for inputname in fieldnames(SPGLM.WeightIndices)

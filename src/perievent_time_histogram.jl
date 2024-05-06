@@ -9,39 +9,43 @@ ARGUMENT
 -`𝚲`: inferred spike rate, from the field `inferredrate` of the type `Characterization`
 -`model`: a struct containing the data, hyperparameters, and parameters
 """
-function perievent_time_histograms(𝚲::Vector{<:Vector{<:AbstractFloat}}, model::Model)
-	reference_events = [model.options.reference_event; "movement"; "stereoclick"]
+perievent_time_histograms(𝚲::Vector{<:Vector{<:AbstractFloat}}, model::Model) = perievent_time_histograms(model.basissets, 𝚲, model.options, model.trials)
+
+function perievent_time_histograms(basissets::Vector{<:BasisFunctionSet}, 𝚲::Vector{<:Vector{<:AbstractFloat}}, options::Options, trials::Vector{<:Trial})
+	reference_events = [options.reference_event; "movement"; "stereoclick"]
 	for event in ["leftclick";  "rightclick"; "response"; "leftresponse"; "rightresponse"]
-		getfield(model.options, Symbol("input_"*event)) && (reference_events = vcat(reference_events, event))
+		getfield(options, Symbol("input_"*event)) && (reference_events = vcat(reference_events, event))
 	end
 	reference_events = unique(reference_events)
 	peths = map(reference_events) do reference_event
-				perievent_time_histograms(𝚲,model,reference_event)
+				perievent_time_histograms(basissets,𝚲,options,reference_event,trials)
 			end
 	vcat(peths...)
 end
 
 """
-		perievent_time_histograms(𝚲,model,reference_event)
+		perievent_time_histograms(basissets,𝚲,options,reference_event,trials)
 
 RETURN a vector containing instances of type `PerieventTimeHistogram`, aligned to the String `reference_event`
 """
-function perievent_time_histograms(𝚲::Vector{<:Vector{<:AbstractFloat}}, model::Model, reference_event::String)
-	if reference_event==model.options.reference_event
-		basisindex = first(findall((set)->set.name==:time_in_trial, model.basissets))
-		reference_timesteps = collect([findfirst(trial.timesteps_s .> 0)] for trial in model.trials)
+function perievent_time_histograms(basissets::Vector{<:BasisFunctionSet}, 𝚲::Vector{<:Vector{<:AbstractFloat}}, options::Options, reference_event::String, trials::Vector{<:Trial})
+	Y = collect(trial.y for trial in trials)
+	𝐲 = vcat(Y...)
+	if reference_event==options.reference_event
+		basisindex = first(findall((set)->set.name==:time_in_trial, basissets))
+		reference_timesteps = collect([findfirst(trial.timesteps_s .> 0)] for trial in trials)
 	elseif reference_event=="movement"
-		basisindex = first(findall((set)->set.name==:movement, model.basissets))
-		reference_timesteps = collect([trial.movement_timestep] for trial in model.trials)
+		basisindex = first(findall((set)->set.name==:movement, basissets))
+		reference_timesteps = collect([trial.movement_timestep] for trial in trials)
 	elseif reference_event=="response"
-		basisindex = first(findall((set)->set.name==:response, model.basissets))
-		reference_timesteps = collect([trial.response_timestep] for trial in model.trials)
+		basisindex = first(findall((set)->set.name==:response, basissets))
+		reference_timesteps = collect([trial.response_timestep] for trial in trials)
 	elseif reference_event=="postspike"
-		basisindex = first(findall((set)->set.name==:postspike, model.basissets))
-		ymax = maximum(model.𝐲)
-		reference_timesteps = collect(vcat((repeat(findall(trial.y .== i),i) for i = 1:ymax)...) for trial in model.trials)
+		basisindex = first(findall((set)->set.name==:postspike, basissets))
+		ymax = maximum(𝐲)
+		reference_timesteps = collect(vcat((repeat(findall(trial.y .== i),i) for i = 1:ymax)...) for trial in trials)
 	elseif contains(reference_event, "click")
-		basisindex = first(findall((set)->set.name==:click, model.basissets))
+		basisindex = first(findall((set)->set.name==:click, basissets))
 		if reference_event == "leftclick"
 			source = 0.0
 		elseif reference_event == "rightclick"
@@ -54,7 +58,7 @@ function perievent_time_histograms(𝚲::Vector{<:Vector{<:AbstractFloat}}, mode
 			error("unrecognized reference event")
 		end
 		reference_timesteps =
-			map(model.trials) do trial
+			map(trials) do trial
 				if isnan(source)
 					trial.clicks_timestep
 				else
@@ -64,14 +68,13 @@ function perievent_time_histograms(𝚲::Vector{<:Vector{<:AbstractFloat}}, mode
 	else
 		error("unrecognized reference event")
 	end
-	timesteps_s = model.basissets[basisindex].timesteps_s
+	timesteps_s = basissets[basisindex].timesteps_s
 	Na = findfirst(timesteps_s.>0)
 	Nb = length(timesteps_s)-Na
-	Y = collect(trial.y for trial in model.trials)
 	peths = map(collect(fieldnames(SPGLM.PETHSet))) do condition
-		trialindices = collect(SPGLM.selecttrial(condition, trial) for trial in model.trials)
-		observed = SPGLM.align_and_average(reference_timesteps[trialindices], Na, Nb, Y[trialindices])./model.options.dt
-		predicted = SPGLM.align_and_average(reference_timesteps[trialindices], Na, Nb, 𝚲[trialindices])./model.options.dt
+		trialindices = collect(SPGLM.selecttrial(condition, trial) for trial in trials)
+		observed = align_and_average(reference_timesteps[trialindices], Na, Nb, Y[trialindices])./options.dt
+		predicted = align_and_average(reference_timesteps[trialindices], Na, Nb, 𝚲[trialindices])./options.dt
 		SPGLM.PerieventTimeHistogram(condition=String(condition),
 								observed=observed,
 							   	predicted=predicted,

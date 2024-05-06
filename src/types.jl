@@ -222,11 +222,13 @@ end
 """
 	EvidenceOptimization
 """
-@with_kw struct EvidenceOptimization{VR<:Vector{<:Real}, VVR<:Vector{<:Vector{<:Real}}}
+@with_kw struct EvidenceOptimization{VR<:Vector{<:Real}, VVR<:Vector{<:Vector{<:Real}}, VMF<:Vector{<:Matrix{<:AbstractFloat}}}
 	"precision used for each iteration of MAP optimization"
 	a::VR
 	"approximate log-evidence evaluated at the end of each MAP optimization"
 	𝐸::VR
+	"a matrix of the second-order partial derivatives of the log-likelihood with respect to the model parameters"
+	hessian_loglikelihood::VMF
 	"Euclidean norm of gradient of the log posterior at the end of each MAP optimization"
 	MAP_g_residual::VR
 	"MAP parameters"
@@ -275,24 +277,61 @@ end
 
 """
 	Kernel
+
+Linear filter of signal from task events or past spiking
 """
 @with_kw struct Kernel{VF<:Vector{<:AbstractFloat}, S<:String}
+	"to identify the set of basis functions"
 	basisname::S
+	"the filter"
 	h::VF
+	"to identify the input to which this filter is associated"
 	inputname::S
+	"the time of each value of the filter `h` aligned to the time of the input"
 	timesteps_s::VF
 end
 
 """
 	Characterization
 """
-@with_kw struct Characterization{VI<:Vector{<:Integer}, VVI<:Vector{<:Vector{<:Integer}}, VVR<:Vector{<:Vector{<:Real}}, VK<:Vector{<:Kernel}, VPETH<:Vector{<:PerieventTimeHistogram}, MF<:Matrix{<:AbstractFloat}}
+@with_kw struct Characterization{VI<:Vector{<:Integer}, VVI<:Vector{<:Vector{<:Integer}}, VVR<:Vector{<:Vector{<:Real}}}
+	"log-likelihood (nats) on each time step on each trial"
 	LL::VVR
+	"total pre-activation input that is external to the neuron (i.e., no spike history)"
 	externalinput::VVR
-	hessian_loglikelihood::MF
+	"moment-to-moment firing rate inferred as the expectation across simulations"
 	inferredrate::VVR
-	kernels::VK
+	"moment-to-moment spike counts"
 	observed_spiketrains::VVI
+	"information for identifying the data"
 	trialindices::VI
+end
+
+"""
+	CVIndices
+
+Indices of trials and timesteps used for training and testing
+"""
+@with_kw struct CVIndices{VI<:Vector{<:Integer}}
+	"indices of the trials used for training or testing"
+	testingtrials::VI
+	trainingtrials::VI
+end
+
+"""
+	CVResults
+
+Results of cross-validation
+"""
+@with_kw struct CVResults{C<:Characterization, VC<:Vector{<:CVIndices}, VS<:Vector{<:Model}, VEO<:Vector{<:EvidenceOptimization}, VPETH<:Vector{<:PerieventTimeHistogram}}
+	"a composite containing quantities that are computed out-of-sample and used to characterize the model`"
+	characterization::C
+	"cvindices[k] indexes the trials and timesteps used for training and testing in the k-th resampling"
+	cvindices::VC
+	"trace of the optimization procedure"
+	evidenceoptimizations::VEO
+	"peri-event time histograms"
 	peths::VPETH
+	"training models"
+	trainingmodels::VS
 end

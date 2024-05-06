@@ -32,6 +32,7 @@ function maximizeevidence!(model::Model; verbose::Bool=true, MAP_convergence_g_t
 			break
 		end
 		∇∇loglikelihood!(memory, model)
+		eo.hessian_loglikelihood[i] .= memory.∇∇ℓ
 		eo.𝐸[i] = logevidence(memory, model)
 		verbose && println("Evidence optimization iteration: ", i, ": approximate log-evidence (𝐸) = ", eo.𝐸[i])
 		if i < model.options.opt_iterations_hyperparameters
@@ -55,6 +56,7 @@ function EvidenceOptimization(model::Model)
 	𝐰 = collect(fill(NaN,N) for i = 1:M)
 	EvidenceOptimization(a=fill(NaN,M),
 						𝐸=fill(-Inf,M),
+						hessian_loglikelihood = collect(fill(NaN,N,N) for i =1:M),
 						MAP_g_residual=fill(NaN,M),
 						𝐰 = collect(fill(NaN,N) for i = 1:M))
 end

@@ -31,4 +31,5 @@ include("modelinputs.jl")
 include("perievent_time_histogram.jl")
 include("Poisson.jl")
 include("save.jl")
+include("shortcuts.jl")
 end
