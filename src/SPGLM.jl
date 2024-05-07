@@ -3,6 +3,7 @@ module SPGLM
 using   Bootstrap,
         CSV,
         DataFrames,
+        Distributed,
         Distributions,
         DSP,
         ForwardDiff,

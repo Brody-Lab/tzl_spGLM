@@ -27,17 +27,17 @@ Model settings
 	"click-aligned linear filter"
 	bfs_click_begin_s::TF= 0.01
 	bfs_click_begins0::TB=true
-	bfs_click_D::TI=4
-	bfs_click_distortion::TF=0.2
-	bfs_click_distortion_s::TF=0.03
-	bfs_click_end_s::TF=0.5; @assert bfs_click_end_s > bfs_click_begin_s
-	bfs_click_ends0::TB=true
+	bfs_click_D::TI=3
+	bfs_click_distortion::TF=0.1
+	bfs_click_distortion_s::TF=0.05
+	bfs_click_end_s::TF=0.3; @assert bfs_click_end_s > bfs_click_begin_s
+	bfs_click_ends0::TB=false
 	"movement-aligned linear filter"
-	bfs_movement_begin_s::TF = -2.0
-	bfs_movement_end_s::TF = 0.3; @assert bfs_movement_end_s > bfs_movement_begin_s
+	bfs_movement_begin_s::TF = -3.0
+	bfs_movement_end_s::TF = 0.5; @assert bfs_movement_end_s > bfs_movement_begin_s
 	bfs_movement_begins0::TB=true
 	bfs_movement_ends0::TB=false
-	bfs_movement_D::TI=6
+	bfs_movement_D::TI=10
 	bfs_movement_distortion::TF=0.0
 	bfs_movement_distortion_s::TF=0.0
 	"response-aligned linear filter"
@@ -53,14 +53,14 @@ Model settings
 	bfs_postspike_end_s::TF=0.25; @assert bfs_postspike_end_s > bfs_postspike_begin_s
 	bfs_postspike_begins0::TB=false
 	bfs_postspike_ends0::TB=true
-	bfs_postspike_D::TI=5
+	bfs_postspike_D::TI=3
 	bfs_postspike_distortion::TF=1.0
 	bfs_postspike_distortion_s::TF=0.01
 	"time in trial aligned to the reference event"
 	bfs_time_in_trial_begins0::TB=false
 	bfs_time_in_trial_ends0::TB=false
 	bfs_time_in_trial_D::TI=4
-	bfs_time_in_trial_distortion::TF=0.2
+	bfs_time_in_trial_distortion::TF=0.1
 	bfs_time_in_trial_distortion_s::TF=0.0
 	"absolute path of the file containing the data"
 	datapath::TS=""
@@ -72,7 +72,7 @@ Model settings
 	input_click::TB = false
 	input_leftclick::TB = true
 	input_rightclick::TB = true
-	input_stereoclick::TB = false
+	input_stereoclick::TB = true
 	input_movement::TB = false
 	input_leftmovement::TB = true
 	input_rightmovement::TB = true
@@ -96,7 +96,7 @@ Model settings
 	"event on each trial aligned to which spikes are counted"
 	reference_event::TS="cpoke_in"; @assert (reference_event=="cpoke_in") ||  (reference_event=="stereoclick")
 	"time, in second, after which spikes are included on each trial, aligned to the reference event on that trial."
-	time_in_trial_begin_s::TF=-0.5
+	time_in_trial_begin_s::TF=-2.0
 	"time, in second, before which spikes are included on each trial, aligned to the reference event on that trial."
 	time_in_trial_end_s::TF=2.0; @assert time_in_trial_end_s > time_in_trial_begin_s
 	"event on each trial after which spikes are not counted"
