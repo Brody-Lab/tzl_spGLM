@@ -19,7 +19,7 @@ function crossvalidate(kfold::Integer, options::Options, trials::Vector{<:Trial}
 	evidenceoptimizations = collect(output[1] for output in outputs)
 	trainingmodels = collect(output[2] for output in outputs)
 	testmodels = collect(test(trials[cvindex.testingtrials], trainingmodel) for (cvindex, trainingmodel) in zip(cvindices, trainingmodels))
-	characterization = Characterization(cvindices, testmodels)
+	characterization = Characterization(cvindices, testmodels, trainingmodels)
 	peths = perievent_time_histograms(testmodels[1].basissets, characterization.inferredrate, options, trials)
     CVResults(cvindices=cvindices, characterization=characterization, peths=peths, trainingmodels=trainingmodels, evidenceoptimizations=evidenceoptimizations)
 end
@@ -114,8 +114,8 @@ ARGUMENT
 -`cvindices`: a vector of composites, each of which containing the indices of trials used for testing and training for a particular cross-validation fold
 -`testmodels`: a vector of composites, each of which containing the held-out data for a cross-validation fold
 """
-function Characterization(cvindices::Vector{<:CVIndices}, testmodels::Vector{<:Model})
-	characterization_each_fold = map(Characterization,testmodels)
+function Characterization(cvindices::Vector{<:CVIndices}, testmodels::Vector{<:Model}, trainingmodels::Vector{<:Model})
+	characterization_each_fold = collect(Characterization(testmodel,trainingmodel) for (testmodel,trainingmodel) in zip(testmodels,trainingmodels))
 	trialindices = sortperm(vcat((cvindex.testingtrials for cvindex in cvindices)...))
 	values =
 		map(fieldnames(Characterization)) do fieldname

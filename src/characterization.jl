@@ -13,34 +13,42 @@ RETURN
 """
 	Characterization(testmodel, trainingmodel)
 """
-function Characterization(model::Model)
-	𝐄𝐞 = SPGLM.externalinput(model)
-	𝐄𝐞sorted = collect(zeros(trial.T) for trial in model.trials)
+function Characterization(testmodel::Model, trainingmodel::Model)
+	𝐄𝐞 = SPGLM.externalinput(testmodel)
+	𝐄𝐞sorted = collect(zeros(trial.T) for trial in testmodel.trials)
 	τ = 0
 	for e in 𝐄𝐞sorted
 		T = length(e)
 		e .= 𝐄𝐞[τ .+ (1:T)]
 		τ = τ + T
 	end
-	# @assert vcat(𝐄𝐞sorted...) == 𝐄𝐞
-	inferredrate = inferrate(𝐄𝐞, model)
-	Characterization(LL = loglikelihood_each_timestep(model),
+	inferredrate = inferrate(𝐄𝐞, testmodel)
+	Characterization(LL = loglikelihood_each_timestep(trainingmodel, testmodel.trials),
 					 externalinput = 𝐄𝐞sorted,
 					 inferredrate = inferredrate,
-					 observed_spiketrains = collect(trial.y for trial in model.trials),
-					 trialindices = collect(trial.trialindex for trial in model.trials))
+					 observed_spiketrains = collect(trial.y for trial in testmodel.trials),
+					 trialindices = collect(trial.trialindex for trial in testmodel.trials))
 end
+Characterization(model::Model) = Characterization(model,model)
 
 """
-RETURN a nested vector whose element `ℓ[i][t]` the log-likelihood on on time step `t` of trial `i`
+	loglikelihood_each_timestep(model, trials)
+
+RETURN the log-likelihood on each time step given model parameters, relative to a homogeneous Poisson model
+
+ARGUMENT
+-`model`: struct containing parameters for evaluating the log-likelihood. The parameter of the time-homogeneous Poisson model is estimated from the data contained in this struct
+-`trials`: vector of the struct `Trial`.
+
 """
-function loglikelihood_each_timestep(model::Model)
+function loglikelihood_each_timestep(model::Model, trials::Vector{<:Trial})
 	𝐋 = model.𝐗*model.𝐰
-	ℓs = collect((zeros(trial.T) for trial in model.trials))
+	ℓs = collect((zeros(trial.T) for trial in trials))
+	λΔt_homo = mean(model.𝐲)
 	τ = 0
-	for (ℓ,trial) in zip(ℓs,model.trials)
+	for (ℓ,trial) in zip(ℓs,trials)
 		for t = 1:trial.T
-			ℓ[t] = poissonloglikelihood(model.options.dt, 𝐋[t+τ], trial.y[t])
+			ℓ[t] = poissonloglikelihood(model.options.dt, 𝐋[t+τ], trial.y[t]) - poissonloglikelihood(λΔt_homo, trial.y[t])
 		end
 		τ += trial.T
 	end

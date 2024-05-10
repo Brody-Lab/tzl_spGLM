@@ -41,4 +41,6 @@ function crossvalidate(csvpath::String, csvrow::Integer, kfold::Integer)
     matwrite(joinpath(options.outputpath, "evidenceoptimizations.mat"), Dict("evidenceoptimizations"=>map(dictionary, cvresults.evidenceoptimizations)))
     save(cvresults.characterization, options.outputpath)
     save(cvresults.peths, options.outputpath)
+    nats_per_spike = sum(sum.(cvresults.characterization.LL))/sum(sum.(cvresults.characterization.observed_spiketrains))
+    matwrite(joinpath(options.outputpath, "nats_per_spike.mat"), Dict("nats_per_spike"=>nats_per_spike))
 end
