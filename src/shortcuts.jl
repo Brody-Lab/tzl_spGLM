@@ -17,8 +17,9 @@ function fit(csvpath::String, csvrow::Integer)
     peths = perievent_time_histograms(characterization.inferredrate,model)
     save(model)
     save(eo, model.options.outputpath)
-    save(characterization, model.options.outputpath)
+    # save(characterization, model.options.outputpath)
     save(peths, model.options.outputpath)
+    save(characterization, trials, model.options.outputpath)
 end
 
 """
@@ -39,8 +40,7 @@ function crossvalidate(csvpath::String, csvrow::Integer, kfold::Integer)
     matwrite(joinpath(options.outputpath, "cvindices.mat"), Dict("cvindices"=>map(dictionary,cvresults.cvindices)))
     matwrite(joinpath(options.outputpath, "trainingmodels.mat"), Dict("models"=>map(dictionary, cvresults.trainingmodels)))
     matwrite(joinpath(options.outputpath, "evidenceoptimizations.mat"), Dict("evidenceoptimizations"=>map(dictionary, cvresults.evidenceoptimizations)))
-    save(cvresults.characterization, options.outputpath)
+    # save(cvresults.characterization, options.outputpath)
     save(cvresults.peths, options.outputpath)
-    nats_per_spike = sum(sum.(cvresults.characterization.LL))/sum(sum.(cvresults.characterization.observed_spiketrains))
-    matwrite(joinpath(options.outputpath, "nats_per_spike.mat"), Dict("nats_per_spike"=>nats_per_spike))
+    save(cvresults.characterization, trials, options.outputpath)
 end

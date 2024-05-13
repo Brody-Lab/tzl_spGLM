@@ -22,10 +22,11 @@ function Characterization(testmodel::Model, trainingmodel::Model)
 		e .= 𝐄𝐞[τ .+ (1:T)]
 		τ = τ + T
 	end
-	inferredrate = inferrate(𝐄𝐞, testmodel)
+	inferredrate, autocorrelation = inferrate(𝐄𝐞, testmodel)
 	Characterization(LL = loglikelihood_each_timestep(trainingmodel, testmodel.trials),
 					 externalinput = 𝐄𝐞sorted,
 					 inferredrate = inferredrate,
+					 autocorrelation = autocorrelation,
 					 observed_spiketrains = collect(trial.y for trial in testmodel.trials),
 					 trialindices = collect(trial.trialindex for trial in testmodel.trials))
 end
@@ -108,7 +109,9 @@ end
 """
 	inferrate(model)
 
-RETURN a nested vector whose element `𝚲[i][t]` the log-likelihood on on time step `t` of trial `i`
+RETURN
+-`𝚲`: a nested vector whose element `𝚲[i][t]` the firing rate on on time step `t` of trial `i`
+-`𝐑`: a nested vector whose element `𝐑[i][t]` is the autocorrelation function for lag `t` on trial `i`
 
 OPTIONAL ARGUMENT
 -`nsamples`: number of samples to draw
@@ -117,12 +120,13 @@ inferrate(model::Model; nsamples=model.options.sampling_N) = inferrate(externali
 function inferrate(𝐄𝐞::Vector{<:AbstractFloat}, model::Model; nsamples=model.options.sampling_N)
 	𝐡 = postspikefilter(model)
 	𝚲 = collect((zeros(trial.T) for trial in model.trials))
+	𝐑 = collect((zeros(trial.T-1) for trial in model.trials))
 	τ = 0
-	for (𝛌,trial) in zip(𝚲,model.trials)
-		inferrate!(𝛌, model.options.dt, 𝐄𝐞[τ+1:τ+trial.T], 𝐡, trial; nsamples=nsamples)
+	for (𝛌,𝐫,trial) in zip(𝚲,𝐑,model.trials)
+		inferrate!(𝛌, 𝐫, model.options.dt, 𝐄𝐞[τ+1:τ+trial.T], 𝐡, trial; nsamples=nsamples)
 		τ += trial.T
 	end
-	𝚲
+	𝚲, 𝐑
 end
 
 """
@@ -141,14 +145,23 @@ ARGUMENT
 OPTIONAL ARGUMENT
 -`nsamples`: number of samples
 """
-function inferrate!(𝛌::Vector{<:AbstractFloat}, Δt::AbstractFloat, 𝐄𝐞::Vector{<:AbstractFloat}, 𝐡::Vector{<:AbstractFloat}, trial::Trial; nsamples::Integer=100)
+function inferrate!(𝛌::Vector{<:AbstractFloat}, 𝐫::Vector{<:AbstractFloat}, Δt::AbstractFloat, 𝐄𝐞::Vector{<:AbstractFloat}, 𝐡::Vector{<:AbstractFloat}, trial::Trial; nsamples::Integer=100)
 	𝕪 = similar(trial.y)
+	lags = 1:trial.T-1
+	𝕣 = similar(𝐫)
+	N = 0
 	for s = 1:nsamples
 		sample!(𝕪, Δt, 𝐄𝐞, 𝐡)
 		for t = 1:trial.T
 			𝛌[t] += 𝕪[t]/nsamples
 		end
+		if sum(𝕪)>0
+			StatsBase.autocor!(𝕣,𝕪,lags)
+			𝐫 .+= 𝕣
+			N+=1
+		end
 	end
+	𝐫 ./= N
 end
 
 """

@@ -52,7 +52,7 @@ Model settings
 	bfs_postspike_begin_s::TF=0.01
 	bfs_postspike_end_s::TF=0.25; @assert bfs_postspike_end_s > bfs_postspike_begin_s
 	bfs_postspike_begins0::TB=false
-	bfs_postspike_ends0::TB=true
+	bfs_postspike_ends0::TB=false
 	bfs_postspike_D::TI=3
 	bfs_postspike_distortion::TF=1.0
 	bfs_postspike_distortion_s::TF=0.01
@@ -301,6 +301,8 @@ end
 	externalinput::VVR
 	"moment-to-moment firing rate inferred as the expectation across simulations"
 	inferredrate::VVR
+	"autocorrelation function"
+	autocorrelation::VVR
 	"moment-to-moment spike counts"
 	observed_spiketrains::VVI
 	"information for identifying the data"

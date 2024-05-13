@@ -38,7 +38,6 @@ function save(characterization::Characterization, outputpath::String)
 		matwrite(path, dict)
 	end
 end
-
 """
 	convolutionkernels(model)
 
@@ -57,4 +56,37 @@ function convolutionkernels(model::Model)
 				inputname=String(inputname),
 				timesteps_s=collect(basisset.timesteps_s))
 	end
+end
+
+"""
+	save(characterization, trials, outputpath)
+
+Save the observed and predicted autocorrelation functions and nats per spike
+"""
+function save(characterization::Characterization, trials::Vector{<:Trial}, outputpath::String)
+	N = minimum(length(𝐫) for 𝐫 in characterization.autocorrelation)
+	𝐑 = filter(x->!isnan(x[1]), characterization.autocorrelation)
+	𝐫_pred = zeros(N)
+	for 𝐫 in 𝐑
+		for t = 1:N
+			𝐫_pred[t] += 𝐫[t]/length(𝐑)
+		end
+	end
+	𝐫_obsv = zeros(N)
+	count = 0
+	lags = collect(1:N)
+	for trial in trials
+		if sum(trial.y) > 0
+			count += 1
+			𝐫_obsv.+=StatsBase.autocor(trial.y,lags)
+		end
+	end
+	𝐫_obsv ./= count
+	Δt = trials[1].timesteps_s[2]-trials[1].timesteps_s[1]
+	dict = Dict("autocor_obsv"=>𝐫_obsv,
+				"autocor_pred"=>𝐫_pred,
+				"lags"=>lags.*Δt)
+	matwrite(joinpath(outputpath, "autocor.mat"), dict)
+	nats_per_spike = sum(sum.(characterization.LL))/sum(sum.(characterization.observed_spiketrains))
+	matwrite(joinpath(outputpath, "nats_per_spike.mat"), Dict("nats_per_spike"=>nats_per_spike))
 end
