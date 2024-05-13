@@ -132,7 +132,8 @@ end
 """
 Function used for testing with machine differentiation
 """
-logposterior(model::Model, 𝐰::Vector{<:Real}) = loglikelihood(model, 𝐰) - model.a[1]*(𝐰⋅𝐰)
+logposterior(a::Real, model::Model, 𝐰::Vector{<:Real}) = loglikelihood(model, 𝐰) - 0.5a*(𝐰⋅𝐰)
+logposterior(model::Model, 𝐰::Vector{<:Real}) = logposterior(model.a[1], model, 𝐰)
 
 """
 Function used for testing with machine differentiation
@@ -146,4 +147,59 @@ function loglikelihood(model::Model, 𝐰::Vector{<:Real})
 		ℓ += poissonloglikelihood(Δt, L, y)
 	end
 	return ℓ
+end
+
+"""
+	gridsearch!(model)
+
+Use cross-validation to search for the precision hyperparameter over a grid
+
+MODIFIED ARGUMENT
+-`model`: structure containing the parameters, hyperparameters, and data. The parameters and hyperparameters are updated.
+"""
+function gridsearch!(model::Model; 𝐚::Vector{<:Real}=10.0.^collect(-6:-1), kfold::Integer=5)
+	testindices, trainindices = SPGLM.cvpartition(kfold, length(model.trials))
+	𝐥 = collect(loglikelihood(a, model, testindices, trainindices) for a in 𝐚)
+	index = findmax(𝐥)[2]
+	if (index==1) || (index == length(𝐚))
+		error("The range of L2 penalties is too limited. ")
+	end
+	model.a = 𝐚[index]
+	model.𝐰 = maximizeposterior(model,𝐚[index])
+end
+
+"""
+	loglikelihood(a,model,testindices,trainingindices)
+
+RETURN the out-of-sample log-likelihood per time step
+
+ARGUMENT
+-`a`: precision of the Gaussian prior on the parameters
+-`model`: structure containing the parameters, hyperparameters, and data. The parameters and hyperparameters are updated.
+-`testindices`: nested vector whose each k-th element is a vector of integers indicating the indices of the samples used for testing in the k-th cross-validation fold
+-`trainindices`: nested vector whose each k-th element is a vector of integers indicating the indices of the samples used for trainining in the k-th cross-validation
+"""
+function loglikelihood(a::AbstractFloat, model::Model, testindices::Vector{<:Vector{<:Integer}}, trainindices::Vector{<:Vector{<:Integer}})
+	ℓ = 0
+	T = length(model.𝐲)
+    for (testindices, trainindices) in zip(testindices, trainindices)
+		trainingmodel = Model(model.options, model.trials[trainindices])
+		testmodel = Model(model.options, model.trials[testindices])
+		𝐰 = maximizeposterior(trainingmodel,a)
+		testmodel.𝐰 .= 𝐰
+		testmodel.a .= a
+		trainingmodel.𝐰 .= 𝐰
+		trainingmodel.a .= a
+		LL = loglikelihood_each_timestep(testmodel,trainingmodel)
+        ℓ += sum(sum.(LL))*sum(length.(LL))
+    end
+    ℓ/T^2
+end
+
+"""
+"""
+function maximizeposterior(model::Model, a::Real)
+	f(x) = -logposterior(a, model, x)
+	results = optimize(f, model.𝐰, LBFGS(); autodiff = :forward)
+	Optim.minimizer(results)
 end
