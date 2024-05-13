@@ -23,7 +23,7 @@ function Characterization(testmodel::Model, trainingmodel::Model)
 		τ = τ + T
 	end
 	inferredrate, autocorrelation = inferrate(𝐄𝐞, testmodel)
-	Characterization(LL = loglikelihood_each_timestep(trainingmodel, testmodel.trials),
+	Characterization(LL = loglikelihood_each_timestep(testmodel, trainingmodel),
 					 externalinput = 𝐄𝐞sorted,
 					 inferredrate = inferredrate,
 					 autocorrelation = autocorrelation,
@@ -42,14 +42,14 @@ ARGUMENT
 -`trials`: vector of the struct `Trial`.
 
 """
-function loglikelihood_each_timestep(model::Model, trials::Vector{<:Trial})
-	𝐋 = model.𝐗*model.𝐰
-	ℓs = collect((zeros(trial.T) for trial in trials))
-	λΔt_homo = mean(model.𝐲)
+function loglikelihood_each_timestep(testmodel::Model, trainingmodel::Model)
+	𝐋 = testmodel.𝐗*testmodel.𝐰
+	ℓs = collect((zeros(trial.T) for trial in testmodel.trials))
+	λΔt_homo = mean(trainingmodel.𝐲)
 	τ = 0
-	for (ℓ,trial) in zip(ℓs,trials)
+	for (ℓ,trial) in zip(ℓs,testmodel.trials)
 		for t = 1:trial.T
-			ℓ[t] = poissonloglikelihood(model.options.dt, 𝐋[t+τ], trial.y[t]) - poissonloglikelihood(λΔt_homo, trial.y[t])
+			ℓ[t] = poissonloglikelihood(trainingmodel.options.dt, 𝐋[t+τ], trial.y[t]) - poissonloglikelihood(λΔt_homo, trial.y[t])
 		end
 		τ += trial.T
 	end

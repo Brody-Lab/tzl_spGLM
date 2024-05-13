@@ -53,13 +53,16 @@ ARGUMENT
 -`options`: a structure containing fixed hyperparameters
 """
 function loadtrials(options::Options)
-	matfile = read(matopen(options.datapath))
-	Cell = matfile["Cell"]
-	if haskey(matfile, "Trials")
-		Trials = matfile["Trials"]
+	file = matopen(options.datapath)
+	Cell = read(file, "Cell")
+	if haskey(Cell, "Trials_path")
+		Trialsfile = matopen(Cell["Trials_path"])
+		Trials = read(Trialsfile)
+		close(Trialsfile)
 	else
-		Trials = read(matopen(Cell["Trials_path"]))["Trials"]
+		Trials = read(file, "Trials")
 	end
+	close(file)
 	trialindices = (.!Trials["violated"]) .&
 				   	(Trials["trial_type"] .== "a") .&
 				   	.!isnan.(Trials["pokedR"]) .&

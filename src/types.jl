@@ -33,13 +33,13 @@ Model settings
 	bfs_click_end_s::TF=0.3; @assert bfs_click_end_s > bfs_click_begin_s
 	bfs_click_ends0::TB=false
 	"movement-aligned linear filter"
-	bfs_movement_begin_s::TF = -3.0
-	bfs_movement_end_s::TF = 0.5; @assert bfs_movement_end_s > bfs_movement_begin_s
+	bfs_movement_begin_s::TF = -1.0
+	bfs_movement_end_s::TF = -0.01; @assert bfs_movement_end_s > bfs_movement_begin_s
 	bfs_movement_begins0::TB=true
 	bfs_movement_ends0::TB=false
-	bfs_movement_D::TI=10
-	bfs_movement_distortion::TF=0.0
-	bfs_movement_distortion_s::TF=0.0
+	bfs_movement_D::TI=3
+	bfs_movement_distortion::TF=0.1
+	bfs_movement_distortion_s::TF=-0.01
 	"response-aligned linear filter"
 	bfs_response_begin_s::TF = -0.5
 	bfs_response_end_s::TF = 0.01; @assert bfs_response_end_s > bfs_response_begin_s
@@ -59,7 +59,7 @@ Model settings
 	"time in trial aligned to the reference event"
 	bfs_time_in_trial_begins0::TB=false
 	bfs_time_in_trial_ends0::TB=false
-	bfs_time_in_trial_D::TI=4
+	bfs_time_in_trial_D::TI=3
 	bfs_time_in_trial_distortion::TF=0.1
 	bfs_time_in_trial_distortion_s::TF=0.0
 	"absolute path of the file containing the data"

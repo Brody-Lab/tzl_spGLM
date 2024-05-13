@@ -15,7 +15,7 @@ OUTPUT
 """
 function crossvalidate(kfold::Integer, options::Options, trials::Vector{<:Trial})
     cvindices = CVIndices(kfold, trials)
-	outputs = pmap(cvindices->train(cvindices,options,trials), cvindices) #change from `pmap` to `map` for testing
+	outputs = map(cvindices->train(cvindices,options,trials), cvindices) #change from `pmap` to `map` for testing
 	evidenceoptimizations = collect(output[1] for output in outputs)
 	trainingmodels = collect(output[2] for output in outputs)
 	testmodels = collect(test(trials[cvindex.testingtrials], trainingmodel) for (cvindex, trainingmodel) in zip(cvindices, trainingmodels))

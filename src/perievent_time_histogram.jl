@@ -70,7 +70,12 @@ function perievent_time_histograms(basissets::Vector{<:BasisFunctionSet}, 𝚲::
 	end
 	timesteps_s = basissets[basisindex].timesteps_s
 	Na = findfirst(timesteps_s.>0)
-	Nb = length(timesteps_s)-Na
+	if isnothing(Na)
+		Na = length(timesteps_s)
+		Nb = 0
+	else
+		Nb = length(timesteps_s)-Na
+	end
 	peths = map(collect(fieldnames(SPGLM.PETHSet))) do condition
 		trialindices = collect(SPGLM.selecttrial(condition, trial) for trial in trials)
 		observed = align_and_average(reference_timesteps[trialindices], Na, Nb, Y[trialindices])./options.dt
