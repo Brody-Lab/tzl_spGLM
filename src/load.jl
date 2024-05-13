@@ -81,7 +81,7 @@ function loadtrials(options::Options)
 			reference_time_s = Trials["stateTimes"][options.reference_event][i]
 		end
 		if !isempty(options.trim_after_event)
-			lasttimestep = floor(Int, (Trials["stateTimes"][options.trim_after_event][i]-reference_time_s)/options.dt)
+			lasttimestep = floor(Int, (Trials["stateTimes"][options.trim_after_event][i]-reference_time_s-default_binedges_s[1])/options.dt)
 			if lasttimestep < default_N
 				binedges_s = default_binedges_s[1:lasttimestep]
 			else
