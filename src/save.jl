@@ -29,9 +29,15 @@ end
 WRITE a MATLAB ".mat" file
 """
 save(model::Model) = matwrite(joinpath(model.options.outputpath, "model.mat"), dictionary(model))
-save(characterization::Characterization, outputpath::String) = matwrite(joinpath(outputpath, "characterization.mat"), dictionary(characterization))
 save(eo::EvidenceOptimization, outputpath::String) = matwrite(joinpath(outputpath, "evidenceoptimization.mat"), dictionary(eo))
 save(peths::Vector{<:PerieventTimeHistogram}, outputpath::String) = matwrite(joinpath(outputpath, "peths.mat"), Dict("peths"=>map(dictionary, peths)))
+function save(characterization::Characterization, outputpath::String)
+ 	map(fieldnames(SPGLM.Characterization)) do fieldname
+		dict = Dict(string(fieldname)=>getfield(characterization,fieldname))
+		path = joinpath(outputpath, string(fieldname)*".mat")
+		matwrite(path, dict)
+	end
+end
 
 """
 	convolutionkernels(model)
