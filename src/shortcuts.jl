@@ -7,7 +7,7 @@ ARGUMENT
 -`cvspath`: absolute path to the comma-separated values (CSV) file containing information about the path of the data and output and the values of hyperparameters
 -`csvrow`: the row in the CSV to consider
 """
-function fit(csvpath::String, csvrow::Integer)
+function fit(csvpath::String, csvrow::Integer; save_characterization::Bool=false)
     options = Options(csvpath,csvrow)
     println(options.datapath)
     trials = loadtrials(options)
@@ -17,7 +17,7 @@ function fit(csvpath::String, csvrow::Integer)
     peths = perievent_time_histograms(characterization.inferredrate,model)
     save(model)
     save(eo, model.options.outputpath)
-    # save(characterization, model.options.outputpath)
+    save_characterization && save(characterization, options.outputpath)
     save(peths, model.options.outputpath)
     save(characterization, trials, model.options.outputpath)
 end
