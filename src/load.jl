@@ -71,8 +71,11 @@ function loadtrials(options::Options)
 				   	(Trials["trial_type"] .== "a") .&
 				   	.!isnan.(Trials["pokedR"]) .&
 				   	.!isnan.(Trials["stateTimes"]["cpoke_in"]) .&
-					.!isnan.(Trials["stateTimes"]["cpoke_out"]) .&
-					.!isnan.(Trials["stateTimes"]["spoke"])
+					.!isnan.(Trials["stateTimes"]["spoke"]) .&
+					(Trials["stateTimes"]["cpoke_out"] .> Trials["stateTimes"]["clicks_on"])
+	if haskey(Trials, "responded")
+		trialindices = trialindices .& Trials["responded"]
+	end
 	trialindices = findall(vec(trialindices))
 	Na = floor(Int, options.time_in_trial_begin_s/options.dt)
 	Nb = ceil(Int, options.time_in_trial_end_s/options.dt)
