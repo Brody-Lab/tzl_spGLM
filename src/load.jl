@@ -27,7 +27,11 @@ function Options(options::Dict)
 	entries = 	map(fieldnames(Options)) do fieldname
 					defaultvalue = getfield(defaults,fieldname)
 					if String(fieldname) ∈ keyset
-						convert(typeof(defaultvalue), options[String(fieldname)])
+						if ismissing(options[String(fieldname)])
+							""
+						else
+							convert(typeof(defaultvalue), options[String(fieldname)])
+						end
 					elseif fieldname ∈ pathfields
 						convert(typeof(defaultvalue), options[String(fieldname)])
 					else
@@ -69,7 +73,7 @@ function loadtrials(options::Options)
 				   	.!isnan.(Trials["stateTimes"]["cpoke_in"]) .&
 					.!isnan.(Trials["stateTimes"]["cpoke_out"]) .&
 					.!isnan.(Trials["stateTimes"]["spoke"])
-	trialindices = vec(trialindices)
+	trialindices = findall(vec(trialindices))
 	Na = floor(Int, options.time_in_trial_begin_s/options.dt)
 	Nb = ceil(Int, options.time_in_trial_end_s/options.dt)
 	default_binedges_s = (Na*options.dt):options.dt:(Nb*options.dt)
@@ -77,7 +81,14 @@ function loadtrials(options::Options)
 	Npre = ceil(Int, (options.bfs_postspike_end_s-options.bfs_postspike_begin_s)/options.dt)
 	pre_binedges = -Npre*options.dt:options.dt:0
 	spiketimes_s = vec(Cell["spiketimes_s"])
-	map(findall(trialindices)) do i
+	if options.reference_event == "stereoclick"
+		first_reference_time_s = Trials["leftBups"][trialindices[1]][1] + Trials["stateTimes"]["clicks_on"][trialindices[1]]
+		last_reference_time_s = Trials["leftBups"][trialindices[end]][1] + Trials["stateTimes"]["clicks_on"][trialindices[end]]
+	else
+		first_reference_time_s = Trials["stateTimes"][options.reference_event][trialindices[1]]
+		last_reference_time_s = Trials["stateTimes"][options.reference_event][trialindices[end]]
+	end
+	map(trialindices) do i
 		if options.reference_event == "stereoclick"
 			reference_time_s = Trials["leftBups"][i][1] + Trials["stateTimes"]["clicks_on"][i]
 		else
@@ -117,7 +128,9 @@ function loadtrials(options::Options)
 		Trial(choice = Trials["pokedR"][i] == 1,
 				clicks_source=clicks_source,
 				clicks_timestep=clicks_timestep,
+				first_reference_time_s=first_reference_time_s,
 				γ = Trials["gamma"][i],
+				last_reference_time_s=last_reference_time_s,
 				movement_timestep = movement_timestep,
 				reference_time_s=reference_time_s,
 				response_timestep = response_timestep,
@@ -150,12 +163,14 @@ ARGUMENT
 -`options`: a struct containing the fixed hyperparameters of the model
 -`trialsets`: data used to constrain the model
 """
-function Model(options::Options, trials::Vector{<:Trial})
+Model(options::Options, trials::Vector{<:Trial}) = Model(options,trials, baselineweights(options,trials))
+
+function Model(options::Options, trials::Vector{<:Trial}, 𝐰_baseline::Vector{<:AbstractFloat})
 	𝐲 = vcat((trial.y for trial in trials)...)
 	T = length(𝐲)
 	𝐗 = Array{typeof(1.0)}(undef,T,0)
-	if !isempty(options.baseline_spikecounts_path)
-		𝐛 = baseline(options,trials)
+	if !isempty(𝐰_baseline)
+		𝐛 = baselineinput(options,trials)*𝐰_baseline
 		𝐗 = hcat(𝐗, vcat((fill(b,trial.T) for (b,trial) in zip(𝐛,trials))...)) # using `hcat` for type
 	else
 		𝐛 = collect(NaN for trial in trials)
@@ -166,7 +181,7 @@ function Model(options::Options, trials::Vector{<:Trial})
 	k = 0
 	for inputname in fieldnames(SPGLM.WeightIndices)
 		if inputname==:baseline
-			i = Int(!isempty(options.baseline_spikecounts_path))
+			i = Int(!isempty(𝐰_baseline))
 			indices = vcat(indices, [k .+ (1:i)])
 			k += i
 		elseif getfield(options, Symbol("input_"*String(inputname)))
@@ -186,6 +201,7 @@ function Model(options::Options, trials::Vector{<:Trial})
 			basissets=basissets,
 			trials=trials,
 			weightindices = weightindices,
+			𝐰_baseline = 𝐰_baseline,
 			𝐗=𝐗,
 			𝐲=𝐲)
 end

@@ -1,18 +1,91 @@
-function baseline(options::Options, trials::Vector{<:Trial}; kfold::Integer=5)
-    𝐗 = read(matopen(options.baseline_spikecounts_path))["X"]
-    𝐲 = collect(mean(trial.y) for trial in trials)./options.dt
-    trialindices = collect(trial.trialindex for trial in trials)
-    𝐗 = hcat(ones(length(trials)), 𝐗[trialindices,:])
-    testindices, trainindices = SPGLM.cvpartition(kfold, length(trialindices))
-    𝛌 = 10.0.^collect(range(log10(options.baseline_L2min), log10(options.baseline_L2max), length=options.baseline_L2n))
-    mse = collect(SPGLM.gaussianmse(λ, testindices, trainindices, 𝐗, 𝐲) for λ in 𝛌)
+"""
+    baselineweights(options,trials;kfold)
+
+RETURN the weights of the pre-trial firing rates
+
+ARGUMENT
+-`options`: fixed hyperparameters
+-`trials`: data
+
+OPTIONAL ARGUMENT
+-`kfold`: number of cross-validation fold
+"""
+function baselineweights(options::Options, trials::Vector{<:Trial})
+    if !isempty(options.baseline_pretrial_spikecounts_path) || options.baseline_time_in_session
+        𝐗 = baselineinput(options,trials)
+        𝐲 = collect(mean(trial.y) for trial in trials)./options.dt
+        if !isempty(options.baseline_pretrial_spikecounts_path)
+            𝛌 = 10.0.^collect(range(log10(options.baseline_L2min), log10(options.baseline_L2max), length=options.baseline_L2n))
+        else
+            𝛌 = 10.0.^collect(-9:-1)
+        end
+        fit_linear_gaussian(𝐗,𝐲,𝛌)
+    else
+        zeros(0)
+    end
+end
+
+"""
+    fit_linear_gaussian(𝐗,𝐲,𝛌;kfold)
+
+RETURN the parameters of a linear gaussian model
+
+ARGUMENT
+-`𝐗`: design matrix
+-`𝐲`: response vector
+-`𝛌`: vector of L2 regularization coefficients to try
+
+OPTIONAL ARGUMENT
+-`kfold`: number of cross-validation folds
+"""
+function fit_linear_gaussian(𝐗::Matrix{<:AbstractFloat}, 𝐲::Vector{<:AbstractFloat}, 𝛌::Vector{<:AbstractFloat}; kfold::Integer=5)
+    testindices, trainindices = cvpartition(kfold, length(𝐲))
+    mse = collect(gaussianmse(λ, testindices, trainindices, 𝐗, 𝐲) for λ in 𝛌)
     minindex = findmin(mse)[2]
-    if (minindex==1) || (minindex == options.baseline_L2n)
-        error("The range of L2 penalties is too limited. ")
+    if (minindex==1) || (minindex == length(𝛌))
+        println("minindex=", minindex, ": The range of L2 penalties is too limited.")
     end
     λₒₚₜ = 𝛌[minindex]
-    # λₒₚₜ = 1e6 # for testing
-    𝐗*((𝐗'*𝐗 + λₒₚₜ*I) \ (𝐗'*𝐲))
+    println(λₒₚₜ)
+    (𝐗'*𝐗 + λₒₚₜ*I) \ (𝐗'*𝐲)
+end
+
+"""
+    baselineinput(options, trials)
+
+RETURN a matrix parametrizing the baseline inputs
+"""
+function baselineinput(options::Options, trials::Vector{<:Trial})
+    if !isempty(options.baseline_pretrial_spikecounts_path)
+        baseline_spikecounts(options,trials)
+    else
+        baseline_time_in_session(options,trials)
+    end
+end
+
+"""
+    baseline_spikecounts(options,trials)
+
+RETURN a matrix containing pre-trial spike counts for estimating baseline input
+"""
+function baseline_spikecounts(options::Options, trials::Vector{<:Trial})
+    trialindices = collect(trial.trialindex for trial in trials)
+    file = matopen(options.baseline_pretrial_spikecounts_path)
+    𝐗 = hcat(ones(length(trials)), read(file,"X")[trialindices,:])
+    close(file)
+    return 𝐗
+end
+
+"""
+    baseline_time_in_session(options, trials)
+
+RETURN a matrix containing basis functions of time in session for estimating baseline input
+"""
+function baseline_time_in_session(options::Options, trials::Vector{<:Trial})
+    N = ceil(Int,trials[1].last_reference_time_s-trials[1].first_reference_time_s)+1
+    Φ = basisfunctions(N, options.baseline_time_in_session_D; begins0=false, ends0=false, η=0.0)
+    reference_times_s = collect(ceil(Int, trial.reference_time_s-trial.first_reference_time_s)+1 for trial in trials)
+    Φ[reference_times_s,:]
 end
 
 """

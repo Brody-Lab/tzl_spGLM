@@ -23,7 +23,8 @@ function dictionary(model::Model)
           "options"=>dictionary(model.options),
           "basissets"=>map(dictionary, model.basissets),
           "weightindices"=>Dict((String(fieldname)=>collect(getfield(model.weightindices,fieldname)) for fieldname in fieldnames(typeof(model.weightindices)))...),
-          "w"=>model.𝐰)
+          "w"=>model.𝐰,
+		  "w_baseline"=>model.𝐰_baseline)
 end
 """
 WRITE a MATLAB ".mat" file

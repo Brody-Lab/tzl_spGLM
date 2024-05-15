@@ -99,7 +99,7 @@ OUTPUT
 -`testmodel`: a structure containing only the test data and the parameters learned from the training data
 """
 function test(testtrials::Vector{<:Trial}, trainingmodel::Model)
-	testmodel = Model(trainingmodel.options,testtrials)
+	testmodel = Model(trainingmodel.options, testtrials, trainingmodel.𝐰_baseline)
 	testmodel.a[1] = trainingmodel.a[1]
 	testmodel.𝐰 .= trainingmodel.𝐰
 	testmodel

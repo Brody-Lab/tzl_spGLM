@@ -32,7 +32,7 @@ ARGUMENT
 -`csvrow`: the row in the CSV to consider
 -`kfold`: number of cross-validation folds
 """
-function crossvalidate(csvpath::String, csvrow::Integer, kfold::Integer)
+function crossvalidate(csvpath::String, csvrow::Integer, kfold::Integer; save_characterization::Bool=false)
     options = Options(csvpath,csvrow)
     println(options.datapath)
     trials = loadtrials(options)
@@ -40,7 +40,7 @@ function crossvalidate(csvpath::String, csvrow::Integer, kfold::Integer)
     matwrite(joinpath(options.outputpath, "cvindices.mat"), Dict("cvindices"=>map(dictionary,cvresults.cvindices)))
     matwrite(joinpath(options.outputpath, "trainingmodels.mat"), Dict("models"=>map(dictionary, cvresults.trainingmodels)))
     matwrite(joinpath(options.outputpath, "evidenceoptimizations.mat"), Dict("evidenceoptimizations"=>map(dictionary, cvresults.evidenceoptimizations)))
-    # save(cvresults.characterization, options.outputpath)
+    save_characterization && save(cvresults.characterization, options.outputpath)
     save(cvresults.peths, options.outputpath)
     save(cvresults.characterization, trials, options.outputpath)
 end

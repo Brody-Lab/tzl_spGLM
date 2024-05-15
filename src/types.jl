@@ -10,10 +10,12 @@ Model settings
 	baseline_L2max::TF=1e10
 	baseline_L2min::TF=1e1
 	baseline_L2n::TI=10
-	"""
 	"absolute path to a `.MAT` file containing spike counts from a time period before the trial to be used to estimate the slowly drifting baseline. This file should contain a matrix of floats of size #trials-by-#neurons. All neurons were simultaneously recorded, and includes the spike counts from the neuron being analyzed as well."
-	"""
-	baseline_spikecounts_path::TS=""
+	baseline_pretrial_spikecounts_path::TS=""
+	"whether to use time in session as baseline input"
+	baseline_time_in_session::TB=false
+	"if using time in session as trial-varying baseline input, this parameter is the number of basis functions to include"
+	baseline_time_in_session_D::TI=8
 	"""
 	the hyperparameters below specify the parametrization of each set of basis functions
 		- `begin_s`: time relative to the event at which the kernel begins
@@ -87,8 +89,6 @@ Model settings
 	opt_iterations_hyperparameters::TI = 3
 	"maximum number of iterations for learning the hyperparameters "
 	opt_MAP_convergence_g_tol::TI = 3
-	"absolute path to a `.MAT` file containing spike counts from a time period before the trial to be used to estimate the slowly drifting baseline. This file should contain a matrix of floats of size #trials-by-#neurons. All neurons were simultaneously recorded, and includes the spike counts from the neuron being analyzed as well."
-	pretrial_spikecounts_path::TS=""
 	"number of samples used to compute the expected emissions and peri-event time histograms"
 	sampling_N::TI = 100
 	"absolute path of the folder where the model output, including the summary and predictions, are saved"
@@ -119,8 +119,12 @@ Sensory stimuli, behavior, and spike train on each trial
 	clicks_source::TVI
 	"time step of each click"
 	clicks_timestep::TVI
+	"first complete trial in the session"
+	first_reference_time_s::TF
 	"log of the ratio of the generative right and left click rate"
 	γ::TF
+	"last complete trial in the session"
+	last_reference_time_s::TF
 	"time step of leaving the center port"
 	movement_timestep::TI
 	"time of the reference event"
@@ -205,6 +209,8 @@ Poisson generalized linear model
 	𝐲::VI
 	"concatenated weights"
 	𝐰::VF=rand(size(𝐗,2))
+	"concatenated weights"
+	𝐰_baseline::VF
 end
 
 """
