@@ -74,17 +74,19 @@ function externalinput(model::Model)
 	indices = vcat(indices...)
 	𝐄𝐞 = view(model.𝐗, :, indices)*model.𝐰[indices]
 	𝐡 = postspikefilter(model)
-	τ = 0
-	for trial in model.trials
-		Tpre = trial.Tpre
-		for t in findall(trial.ypre .> 0)
-			yₜ = trial.ypre[t]
-			j₀ = Tpre-t+1
-			for (i,j) in zip(1:Tpre, j₀:Tpre)
-				𝐄𝐞[τ+i] += yₜ*𝐡[j]
+	if sum(𝐡)>0.0
+		τ = 0
+		for trial in model.trials
+			Tpre = trial.Tpre
+			for t in findall(trial.ypre .> 0)
+				yₜ = trial.ypre[t]
+				j₀ = Tpre-t+1
+				for (i,j) in zip(1:Tpre, j₀:Tpre)
+					𝐄𝐞[τ+i] += yₜ*𝐡[j]
+				end
 			end
+			τ += trial.T
 		end
-		τ += trial.T
 	end
 	𝐄𝐞
 end
