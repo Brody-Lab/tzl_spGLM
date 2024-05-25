@@ -61,22 +61,26 @@ function loadtrials(options::Options)
 	Cell = read(file, "Cell")
 	if haskey(Cell, "Trials_path")
 		Trialsfile = matopen(Cell["Trials_path"])
-		Trials = read(Trialsfile)
+		Trials = read(Trialsfile)["Trials"]
 		close(Trialsfile)
 	else
 		Trials = read(file, "Trials")
 	end
 	close(file)
-	trialindices = (.!Trials["violated"]) .&
-				   	(Trials["trial_type"] .== "a") .&
-				   	.!isnan.(Trials["pokedR"]) .&
-				   	.!isnan.(Trials["stateTimes"]["cpoke_in"]) .&
-					.!isnan.(Trials["stateTimes"]["spoke"]) .&
-					(Trials["stateTimes"]["cpoke_out"] .> Trials["stateTimes"]["clicks_on"])
-	if haskey(Trials, "responded")
-		trialindices = trialindices .& Trials["responded"]
+	if !isempty(options.trial_indices_path)
+		trialindices = DataFrames.DataFrame(CSV.File(options.trial_indices_path; header=0))[:,1]
+	else
+		trialindices = (.!Trials["violated"]) .&
+					   	(Trials["trial_type"] .== "a") .&
+					   	.!isnan.(Trials["pokedR"]) .&
+					   	.!isnan.(Trials["stateTimes"]["cpoke_in"]) .&
+						.!isnan.(Trials["stateTimes"]["spoke"]) .&
+						(Trials["stateTimes"]["cpoke_out"] .> Trials["stateTimes"]["clicks_on"])
+		if haskey(Trials, "responded")
+			trialindices = trialindices .& Trials["responded"]
+		end
+		trialindices = findall(vec(trialindices))
 	end
-	trialindices = findall(vec(trialindices))
 	Na = floor(Int, options.time_in_trial_begin_s/options.dt)
 	Nb = ceil(Int, options.time_in_trial_end_s/options.dt)
 	default_binedges_s = (Na*options.dt):options.dt:(Nb*options.dt)

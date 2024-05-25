@@ -99,6 +99,8 @@ Model settings
 	time_in_trial_begin_s::TF=-2.0
 	"time, in second, before which spikes are included on each trial, aligned to the reference event on that trial."
 	time_in_trial_end_s::TF=2.0; @assert time_in_trial_end_s > time_in_trial_begin_s
+	"absolute path to a MAT file containing the indices of the trials to be used"
+	trial_indices_path::TS=""
 	"event on each trial after which spikes are not counted"
 	trim_after_event::TS=""
 end
