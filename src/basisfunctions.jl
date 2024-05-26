@@ -61,7 +61,8 @@ function BasisFunctionSet(setname::Symbol, options::Options)
 	D = getfield(options, Symbol("bfs_"*String(setname)*"_D"))
 	begin_s = floor(begin_s/options.dt)*options.dt
 	end_s = ceil(end_s/options.dt)*options.dt
-	N = ceil(Int, (end_s-begin_s) / options.dt)
+	timesteps_s = (begin_s+options.dt):options.dt:end_s
+	N = length(timesteps_s)
 	distortion_s = getfield(options, Symbol("bfs_"*String(setname)*"_distortion_s"))
 	ηindex = ceil(Int, (distortion_s-begin_s)/options.dt)
 	Φ = basisfunctions(N, D;
@@ -69,7 +70,7 @@ function BasisFunctionSet(setname::Symbol, options::Options)
 					ends0=getfield(options, Symbol("bfs_"*String(setname)*"_ends0")),
 					η=getfield(options, Symbol("bfs_"*String(setname)*"_distortion")),
 					ηindex = ηindex)
-	BasisFunctionSet(timesteps_s = (begin_s+options.dt):options.dt:end_s,
+	BasisFunctionSet(timesteps_s = timesteps_s,
 					name=setname,
 					Φ=Φ)
 end
