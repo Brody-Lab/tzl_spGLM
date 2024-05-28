@@ -94,7 +94,7 @@ Model settings
 	"absolute path of the folder where the model output, including the summary and predictions, are saved"
 	outputpath::TS=""
 	"event on each trial aligned to which spikes are counted"
-	reference_event::TS="cpoke_in"; @assert (reference_event=="cpoke_in") ||  (reference_event=="stereoclick")
+	reference_event::TS="cpoke_in"
 	"time, in second, after which spikes are included on each trial, aligned to the reference event on that trial."
 	time_in_trial_begin_s::TF=-2.0
 	"time, in second, before which spikes are included on each trial, aligned to the reference event on that trial."
