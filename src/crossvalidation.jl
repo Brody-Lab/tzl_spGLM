@@ -1,5 +1,5 @@
 """
-    crosssvalidate(model)
+    crosssvalidate(kfold,options,trials)
 
 Assess how well the factorial hidden Markov drift-diffusion model generalizes to independent datasets
 
@@ -13,9 +13,13 @@ OPTIONAL ARGUMENT
 OUTPUT
 -an instance of `CVResults`
 """
-function crossvalidate(kfold::Integer, options::Options, trials::Vector{<:Trial})
-    cvindices = CVIndices(kfold, trials)
-	trainingmodels = map(cvindices->train(cvindices,options,trials), cvindices)
+crossvalidate(kfold::Integer, options::Options, trials::Vector{<:Trial}) = crossvalidate(CVIndices(kfold, trials),options,trials)
+
+"""
+    crosssvalidate(cvindices,options,trials)
+"""
+function crossvalidate(cvindices::Vector{<:CVIndices}, options::Options, trials::Vector{<:Trial})
+	trainingmodels = collect(fit(options,trials[cvindex.trainingtrials]) for cvindex in cvindices)
 	testmodels = collect(test(trials[cvindex.testingtrials], trainingmodel) for (cvindex, trainingmodel) in zip(cvindices, trainingmodels))
 	characterization = Characterization(cvindices, testmodels, trainingmodels)
 	peths = perievent_time_histograms(testmodels[1].basissets, characterization.inferredrate, options, trials)
@@ -34,8 +38,9 @@ ARGUMENT
 OUTPUT
 -a vector of instances of `CVIndices`
 """
-function CVIndices(kfold::Integer, trials::Vector{<:Trial})
-    ntrials = length(trials)
+CVIndices(kfold::Integer, trials::Vector{<:Trial}) = CVIndices(kfold::Integer, length(trials))
+
+function CVIndices(kfold::Integer, ntrials::Integer)
 	testingtrials, trainingtrials = cvpartition(kfold,ntrials)
     map(1:kfold) do k
         CVIndices(trainingtrials = trainingtrials[k],
@@ -60,33 +65,6 @@ function cvpartition(kfold::Integer, nsamples::Integer)
 	training = collect(convert.(Int,x) for x in MLBase.Kfold(nsamples,kfold))
 	testing = collect(setdiff(1:nsamples, training) for training in training)
     return testing, training
-end
-
-"""
-	train(cvindices, model)
-
-Fit training models
-
-ARGUMENT
--`cvindices`: indices of the trials and timesteps used for training and testing in each fold
--`model`: structure containing the full dataset, parameters, and hyperparameters
-
-OPTIONAL ARGUMENT
--`choicesonly`: whether to train on only the behavioral choices and ignore the spike trains
-
-RETURN
--`trainingmodel`: structure containing the data in the training trials, parameters optimized for the data in the trainings, and hyperparameters
-"""
-function train(cvindices::CVIndices, options::Options, trials::Vector{<:Trial})
-	trainingmodel = Model(options, trials[cvindices.trainingtrials])
-	if options.opt_method == "evidenceoptimization"
-		maximizeevidence!(trainingmodel)
-	elseif options.opt_method == "gridsearch"
-		gridsearch!(trainingmodel)
-	elseif options.opt_method == "maximumaposteriori"
-		maximizeposterior!(trainingmodel)
-	end
-	return trainingmodel
 end
 
 """

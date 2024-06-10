@@ -48,3 +48,50 @@ function crossvalidate(csvpath::String, csvrow::Integer, kfold::Integer; save_ch
     save(cvresults.peths, options.outputpath)
     save(cvresults.characterization, trials, options.outputpath)
 end
+
+"""
+	crossvalidate(settingspath, datapath, testingtrials, trainingtrials)
+
+ARGUMENT
+-`settingspath`: a string indicating the absolute to the path of the comma-separated values (CSV) file specifying the fixed hyperparameters (i.e., options) of the generalized linear model. Each column is an option.
+-`datapath`: a string specifying the absolute path of the `MAT` file
+-`testingtrials`: nested array whose element `testingtrials[k][i]` is an integer that specifies the index of the i-th trial among all trials used for testing in the k-th cross-validation fold
+-`trainingtrials`: nested array whose element `trainingtrials[k][i]` is an integer that specifies the index of the i-th trial among all trials used for training in the k-th cross-validation fold
+
+RETURN
+-`testinginput`: a nested array whose element `testinginput[k][i][t]` corresponds to the k-th cross-validation fold, i-th trial used for testing in that fold, and t-th time step in that trial
+-`traininginput`: a nested array whose element `traininginput[k][i][t]` corresponds to the k-th cross-validation fold, i-th trial used for training in that fold, and t-th time step in that trial
+
+EXAMPLES
+```python
+from juliacall import Main as jl
+from sklearn.model_selection import KFold
+jl.seval("using SPGLM")
+settingspath = "/mnt/cup/labs/brody/tzluo/manuscript2023a/settings_2024_04_09/SPGLM_options.csv"
+settingspath = "/mnt/cup/labs/brody/tzluo/manuscript2023a/settings_2024_04_09/SPGLM_options.csv"
+kf = KFold(n_splits=5,shuffle=True)
+X = np.random.rand(10,2)
+trainingtrials = list((output[0] for output in kf.split(X)))
+testingtrials = list((output[1] for output in kf.split(X)))
+jl.SPGLM.crossvalidate(settingspath,datapath,testingtrials,trainingtrials)
+```
+
+```julia
+using SPGLM
+settingspath = "/mnt/cup/people/zhihaol/Documents/tzluo/analyses/analysis_2024_06_09a_pythoncall/options.csv"
+datapath = "/mnt/cup/labs/brody/tzluo/analysis_data/analysis_2024_06_06b_individualneurons/individualneurons/A324_2023_07_21_19108313611_010.mat"
+testingtrials, trainingtrials = SPGLM.cvpartition(5,10)
+SPGLM.crossvalidate(settingspath, datapath, testingtrials, trainingtrials)
+```
+"""
+function crossvalidate(settingspath::String, datapath::String, testingtrials::Vector{<:Vector{<:Integer}}, trainingtrials::Vector{<:Vector{<:Integer}})
+	dict = dictionary(settingspath,1)
+	dict["datapath"] = datapath
+	options = Options(dict)
+    trials = loadtrials(options)
+	trainingmodels = collect(fit(options,trials[trainingtrials]) for trainingtrials in trainingtrials)
+	testmodels = collect(test(trials[testingtrials], trainingmodel) for (testingtrials, trainingmodel) in zip(testingtrials, trainingmodels))
+	testinginputs = collect(externalinput(testmodel) for testmodel in testmodels)
+	traininginputs = collect(externalinput(trainingmodel) for trainingmodel in trainingmodels)
+	return testinginputs, traininginputs
+end

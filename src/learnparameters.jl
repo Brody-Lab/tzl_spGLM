@@ -1,4 +1,38 @@
 """
+	fit(options,trials)
+
+RETURN a model with optimized parameters
+
+ARGUMENT
+-`options`: struct containing fixed hyperparameters
+-`trials`: vector containing information about each trial
+"""
+function fit(options::Options, trials::Vector{<:Trial})
+	model = Model(options,trials)
+	fit!(model)
+	return model
+end
+
+"""
+	fit!(model)
+
+Optimize model parameters
+
+MODIFIED ARGUMENT
+-`model`: a struct containing the data, hyperparameters, and parameters.
+"""
+function fit!(model::Model)
+	if model.options.opt_method == "evidenceoptimization"
+		maximizeevidence!(model)
+	elseif model.options.opt_method == "gridsearch"
+		gridsearch!(model)
+	elseif model.options.opt_method == "maximumaposteriori"
+		maximizeposterior!(model)
+	end
+	return nothing
+end
+
+"""
 	maximizeposterior!(memory, model)
 
 MODIFIED ARGUMENT
