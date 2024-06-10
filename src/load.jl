@@ -13,6 +13,21 @@ Options(df::DataFrames.DataFrame, row::Integer) = Options(df[row,:])
 Options(dfrow::DataFrames.DataFrameRow) = Options(Dict((name=>dfrow[name] for name in names(dfrow))...))
 
 """
+	dictionary(csvpath, row)
+
+RETURN a `Dict` containing hyperparameters
+
+ARGUMENT
+-`csvpath`: the absolute path to a comma-separated values (CSV) file
+-`row`: the row of the CSV to be considered
+"""
+function dictionary(csvpath::String, row::Integer)
+	df = DataFrames.DataFrame(CSV.File(csvpath))
+	dfrow = df[row,:]
+	Dict((name=>dfrow[name] for name in names(dfrow))...)
+end
+
+"""
 	Options(options::Dict)
 
 RETURN a struct containing the fixed hyperparameters of the model
