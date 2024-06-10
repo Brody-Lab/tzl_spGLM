@@ -64,24 +64,17 @@ RETURN
 
 EXAMPLES
 ```python
-from juliacall import Main as jl
+import numpy as np
 from sklearn.model_selection import KFold
+from juliacall import Main as jl
 jl.seval("using SPGLM")
-settingspath = "/mnt/cup/labs/brody/tzluo/manuscript2023a/settings_2024_04_09/SPGLM_options.csv"
-settingspath = "/mnt/cup/labs/brody/tzluo/manuscript2023a/settings_2024_04_09/SPGLM_options.csv"
 kf = KFold(n_splits=5,shuffle=True)
-X = np.random.rand(10,2)
-trainingtrials = list((output[0] for output in kf.split(X)))
-testingtrials = list((output[1] for output in kf.split(X)))
-jl.SPGLM.crossvalidate(settingspath,datapath,testingtrials,trainingtrials)
-```
-
-```julia
-using SPGLM
+X = np.random.rand(500,2)
+trainingtrials = list((output[0]+1 for output in kf.split(X)))
+testingtrials = list((output[1]+1 for output in kf.split(X)))
 settingspath = "/mnt/cup/people/zhihaol/Documents/tzluo/analyses/analysis_2024_06_09a_pythoncall/options.csv"
-datapath = "/mnt/cup/labs/brody/tzluo/analysis_data/analysis_2024_06_06b_individualneurons/individualneurons/A324_2023_07_21_19108313611_010.mat"
-testingtrials, trainingtrials = SPGLM.cvpartition(5,10)
-SPGLM.crossvalidate(settingspath, datapath, testingtrials, trainingtrials)
+datapath = "/mnt/cup/labs/brody/tzluo/analysis_data/analysis_2024_04_06a_separate_Cells/dataset/T176_2018_05_03_619040938_003.mat"
+testinginputs, traininginputs = jl.SPGLM.crossvalidate(settingspath, datapath, testingtrials, trainingtrials)
 ```
 """
 function crossvalidate(settingspath::String, datapath::String, testingtrials, trainingtrials)
