@@ -15,13 +15,11 @@ OUTPUT
 """
 function crossvalidate(kfold::Integer, options::Options, trials::Vector{<:Trial})
     cvindices = CVIndices(kfold, trials)
-	outputs = map(cvindices->train(cvindices,options,trials), cvindices) #change from `pmap` to `map` for testing
-	evidenceoptimizations = collect(output[1] for output in outputs)
-	trainingmodels = collect(output[2] for output in outputs)
+	trainingmodels = map(cvindices->train(cvindices,options,trials), cvindices)
 	testmodels = collect(test(trials[cvindex.testingtrials], trainingmodel) for (cvindex, trainingmodel) in zip(cvindices, trainingmodels))
 	characterization = Characterization(cvindices, testmodels, trainingmodels)
 	peths = perievent_time_histograms(testmodels[1].basissets, characterization.inferredrate, options, trials)
-    CVResults(cvindices=cvindices, characterization=characterization, peths=peths, trainingmodels=trainingmodels, evidenceoptimizations=evidenceoptimizations)
+    CVResults(cvindices=cvindices, characterization=characterization, peths=peths, trainingmodels=trainingmodels)
 end
 
 """
@@ -81,8 +79,14 @@ RETURN
 """
 function train(cvindices::CVIndices, options::Options, trials::Vector{<:Trial})
 	trainingmodel = Model(options, trials[cvindices.trainingtrials])
-	eo = maximizeevidence!(trainingmodel)
-	return eo, trainingmodel
+	if options.opt_method == "evidenceoptimization"
+		maximizeevidence!(trainingmodel)
+	elseif options.opt_method == "gridsearch"
+		gridsearch!(trainingmodel)
+	elseif options.opt_method == "maximumaposteriori"
+		maximizeposterior!(trainingmodel)
+	end
+	return trainingmodel
 end
 
 """

@@ -95,6 +95,13 @@ function loadtrials(options::Options)
 		first_reference_time_s = Trials["stateTimes"][options.reference_event][trialindices[1]]
 		last_reference_time_s = Trials["stateTimes"][options.reference_event][trialindices[end]]
 	end
+	usepose = (options.pose_filepath != "")
+	if usepose
+		file = matopen(options.pose_filepath)
+		pose = vec(vec.(read(file, "pose")))
+		pose_time_s = vec(read(file, "pose_time_s"))
+		close(file)
+	end
 	map(trialindices) do i
 		if options.reference_event == "stereoclick"
 			reference_time_s = Trials["leftBups"][i][1] + Trials["stateTimes"]["clicks_on"][i]
@@ -114,6 +121,18 @@ function loadtrials(options::Options)
 		hist = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ binedges_s), closed=:right)
 		y = hist.weights
 		ypre = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ pre_binedges), closed=:right).weights
+		if usepose # assumes sampling rate of the pose signals is lower than that of the neural
+			ntimesteps = length(binedges_s)-1
+			pose_sorted = collect(fill(NaN,ntimesteps) for pose in pose)
+			for j = 1:ntimesteps
+				index = findfirst(reference_time_s+binedges_s[j] .>= pose_time_s)
+				for k in eachindex(pose)
+					pose_sorted[k][j] = sum(pose[k][index])
+				end
+			end
+		else
+			pose_sorted = collect(zeros(0) for i=1:length(trialindices))
+		end
 		@assert !isnan(Trials["stateTimes"]["cpoke_out"][i])
 		t₀ = reference_time_s + binedges_s[1]
 		movement_timestep = ceil(Int, (Trials["stateTimes"]["cpoke_out"][i] - t₀)/options.dt)
@@ -139,6 +158,7 @@ function loadtrials(options::Options)
 				γ = Trials["gamma"][i],
 				last_reference_time_s=last_reference_time_s,
 				movement_timestep = movement_timestep,
+				pose=pose_sorted,
 				reference_time_s=reference_time_s,
 				response_timestep = response_timestep,
 				timesteps_s=binedges_s[2:end],
@@ -192,8 +212,12 @@ function Model(options::Options, trials::Vector{<:Trial}, 𝐰_baseline::Vector{
 			indices = vcat(indices, [k .+ (1:i)])
 			k += i
 		elseif getfield(options, Symbol("input_"*String(inputname)))
-			basisset = first(basissets[setnames .== SPGLM.match_input_to_basis(inputname)])
-			𝐗add = SPGLM.inputs_each_timestep(basisset, inputname, trials)
+			if inputname == :pose
+				𝐗add = vcat((hcat(trial.pose...) for trial in trials)...)
+			else
+				basisset = first(basissets[setnames .== SPGLM.match_input_to_basis(inputname)])
+				𝐗add = SPGLM.inputs_each_timestep(basisset, inputname, trials)
+			end
 			𝐗 = hcat(𝐗, 𝐗add)
 			N = size(𝐗add,2)
 			indices = vcat(indices, [k .+ (1:N)])

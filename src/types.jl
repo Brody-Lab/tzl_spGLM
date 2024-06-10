@@ -78,6 +78,7 @@ Model settings
 	input_movement::TB = false
 	input_leftmovement::TB = true
 	input_rightmovement::TB = true
+	input_pose::TB = false
 	input_postspike::TB = true
 	input_response::TB = false
 	input_leftresponse::TB = false
@@ -89,6 +90,12 @@ Model settings
 	opt_iterations_hyperparameters::TI = 3
 	"maximum number of iterations for learning the hyperparameters "
 	opt_MAP_convergence_g_tol::TI = 3
+	"optimization method"
+	opt_method::TS="evidenceoptimization"
+	"absolute path to a file containing the pose measurements. The file should be a MAT file containing an variable `posesignals` that is a T-by-D matrix, where T is the number of samples and D the dimensionality of the signal. The file should also contain a variable `firstframetime_s` that indicates the time of the first frame and a variable `samplingrate_hz` indicating the sampling rate in hertz"
+	pose_filepath::TS=""
+	"default value of the precision hyperparameter"
+	precision::TF=1e-2
 	"number of samples used to compute the expected emissions and peri-event time histograms"
 	sampling_N::TI = 100
 	"absolute path of the folder where the model output, including the summary and predictions, are saved"
@@ -114,7 +121,8 @@ Sensory stimuli, behavior, and spike train on each trial
 						TF<:AbstractFloat,
 						TI<:Integer,
 						TVI<:Vector{<:Integer},
-						TARF<:AbstractRange{<:AbstractFloat}}
+						TARF<:AbstractRange{<:AbstractFloat},
+						VVF<:Vector{<:Vector{<:AbstractFloat}}}
 	"behavioral choice"
     choice::TB
 	"source of each click: `0` indicates a left click, `1` a right click, and `2` a stereoclick"
@@ -129,6 +137,8 @@ Sensory stimuli, behavior, and spike train on each trial
 	last_reference_time_s::TF
 	"time step of leaving the center port"
 	movement_timestep::TI
+	"pose measurements"
+	pose::VVF
 	"time of the reference event"
 	reference_time_s::TF
 	"time step of entering the side port"
@@ -173,6 +183,7 @@ Indices of the encoding weights of the inputs
 	leftmovement::UI
 	leftresponse::UI
 	movement::UI
+	pose::UI
 	postspike::UI
 	response::UI
 	rightclick::UI
@@ -193,8 +204,6 @@ Poisson generalized linear model
 					VB<:Vector{<:BasisFunctionSet},
 					WI<:WeightIndices,
 					VI<:Vector{<:Integer}}
-	"precision parameter of the Gaussian prior on weights"
-	a::VF=rand(1)
 	"inferred baseline firing rate on each trial"
 	baseline::VF
     "fixed hyperparameters"
@@ -213,6 +222,8 @@ Poisson generalized linear model
 	𝐰::VF=rand(size(𝐗,2))
 	"concatenated weights"
 	𝐰_baseline::VF
+	"precision parameter of the Gaussian prior on weights"
+	a::VF=[options.precision]
 end
 
 """
@@ -333,13 +344,11 @@ end
 
 Results of cross-validation
 """
-@with_kw struct CVResults{C<:Characterization, VC<:Vector{<:CVIndices}, VS<:Vector{<:Model}, VEO<:Vector{<:EvidenceOptimization}, VPETH<:Vector{<:PerieventTimeHistogram}}
+@with_kw struct CVResults{C<:Characterization, VC<:Vector{<:CVIndices}, VS<:Vector{<:Model}, VPETH<:Vector{<:PerieventTimeHistogram}}
 	"a composite containing quantities that are computed out-of-sample and used to characterize the model`"
 	characterization::C
 	"cvindices[k] indexes the trials and timesteps used for training and testing in the k-th resampling"
 	cvindices::VC
-	"trace of the optimization procedure"
-	evidenceoptimizations::VEO
 	"peri-event time histograms"
 	peths::VPETH
 	"training models"

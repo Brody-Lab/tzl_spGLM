@@ -46,7 +46,7 @@ RETURN a vector whose each element is an instance of type `Kernel`
 """
 function convolutionkernels(model::Model)
 	inputnames = collect(fieldnames(typeof(model.weightindices)))
-	inputnames = filter(!isequal(:baseline), inputnames)
+	filter!(x->!isequal(x,:baseline) & !isequal(x,:pose), inputnames)
 	indices = collect(!isempty(getfield(model.weightindices, fieldname)) for fieldname in inputnames)
 	inputnames = inputnames[indices]
 	map(inputnames) do inputname

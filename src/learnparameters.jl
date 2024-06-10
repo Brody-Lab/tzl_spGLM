@@ -157,15 +157,12 @@ Use cross-validation to search for the precision hyperparameter over a grid
 MODIFIED ARGUMENT
 -`model`: structure containing the parameters, hyperparameters, and data. The parameters and hyperparameters are updated.
 """
-function gridsearch!(model::Model; 𝐚::Vector{<:Real}=10.0.^collect(-6:-1), kfold::Integer=5)
+function gridsearch!(model::Model; 𝐚::Vector{<:Real}=10.0.^collect(-5:2), kfold::Integer=5)
 	testindices, trainindices = SPGLM.cvpartition(kfold, length(model.trials))
 	𝐥 = collect(loglikelihood(a, model, testindices, trainindices) for a in 𝐚)
 	index = findmax(𝐥)[2]
-	if (index==1) || (index == length(𝐚))
-		error("The range of L2 penalties is too limited. ")
-	end
-	model.a = 𝐚[index]
-	model.𝐰 = maximizeposterior(model,𝐚[index])
+	model.a[1] = 𝐚[index]
+	model.𝐰 .= maximizeposterior(model,𝐚[index])
 end
 
 """

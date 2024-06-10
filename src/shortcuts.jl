@@ -12,14 +12,19 @@ function fit(csvpath::String, csvrow::Integer; save_characterization::Bool=false
     println(options.datapath)
     trials = loadtrials(options)
     model = Model(options, trials)
-    eo = maximizeevidence!(model)
+    if options.opt_method == "evidenceoptimization"
+		eo = maximizeevidence!(model)
+	    save(eo, model.options.outputpath)
+	elseif options.opt_method == "gridsearch"
+		gridsearch!(model)
+	elseif options.opt_method == "maximumaposteriori"
+		maximizeposterior!(model)
+	end
+    save(model)
     characterization = Characterization(model)
     peths = perievent_time_histograms(characterization.inferredrate,model)
-    save(model)
-    save(eo, model.options.outputpath)
-    save_characterization && save(characterization, options.outputpath)
     save(peths, model.options.outputpath)
-    save(characterization, trials, model.options.outputpath)
+    save_characterization && save(characterization, options.outputpath)
 end
 
 """
@@ -39,7 +44,6 @@ function crossvalidate(csvpath::String, csvrow::Integer, kfold::Integer; save_ch
     cvresults = crossvalidate(kfold,options,trials)
     matwrite(joinpath(options.outputpath, "cvindices.mat"), Dict("cvindices"=>map(dictionary,cvresults.cvindices)))
     matwrite(joinpath(options.outputpath, "trainingmodels.mat"), Dict("models"=>map(dictionary, cvresults.trainingmodels)))
-    matwrite(joinpath(options.outputpath, "evidenceoptimizations.mat"), Dict("evidenceoptimizations"=>map(dictionary, cvresults.evidenceoptimizations)))
     save_characterization && save(cvresults.characterization, options.outputpath)
     save(cvresults.peths, options.outputpath)
     save(cvresults.characterization, trials, options.outputpath)
