@@ -84,7 +84,7 @@ testingtrials, trainingtrials = SPGLM.cvpartition(5,10)
 SPGLM.crossvalidate(settingspath, datapath, testingtrials, trainingtrials)
 ```
 """
-function crossvalidate(settingspath::String, datapath::String, testingtrials::Vector{<:Vector{<:Integer}}, trainingtrials::Vector{<:Vector{<:Integer}})
+function crossvalidate(settingspath::String, datapath::String, testingtrials, trainingtrials)
 	dict = dictionary(settingspath,1)
 	dict["datapath"] = datapath
 	options = Options(dict)
