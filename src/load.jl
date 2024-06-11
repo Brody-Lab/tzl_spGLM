@@ -13,6 +13,15 @@ Options(df::DataFrames.DataFrame, row::Integer) = Options(df[row,:])
 Options(dfrow::DataFrames.DataFrameRow) = Options(Dict((name=>dfrow[name] for name in names(dfrow))...))
 
 """
+	Options(csvpath, datapath)
+"""
+function Options(csvpath::String, datapath::String)
+	dict = dictionary(csvpath,1)
+	dict["datapath"] = datapath
+	Options(dict)
+end
+
+"""
 	dictionary(csvpath, row)
 
 RETURN a `Dict` containing hyperparameters

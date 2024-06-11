@@ -70,9 +70,15 @@ RETURN a matrix containing pre-trial spike counts for estimating baseline input
 """
 function baseline_spikecounts(options::Options, trials::Vector{<:Trial})
     trialindices = collect(trial.trialindex for trial in trials)
-    file = matopen(options.baseline_pretrial_spikecounts_path)
-    𝐗 = hcat(ones(length(trials)), read(file,"X")[trialindices,:])
-    close(file)
+    if options.baseline_pretrial_spikecounts_path == "embedded"
+        file = matopen(options.datapath)
+        𝐗 = hcat(ones(length(trials)), read(file,"baseline_pretrial_spikecounts")[trialindices,:])
+        close(file)
+    else
+        file = matopen(options.baseline_pretrial_spikecounts_path)
+        𝐗 = hcat(ones(length(trials)), read(file,"X")[trialindices,:])
+        close(file)
+    end
     return 𝐗
 end
 

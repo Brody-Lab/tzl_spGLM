@@ -78,9 +78,7 @@ testinginputs, traininginputs = jl.SPGLM.crossvalidate(settingspath, datapath, t
 ```
 """
 function crossvalidate(settingspath::String, datapath::String, testingtrials, trainingtrials)
-	dict = dictionary(settingspath,1)
-	dict["datapath"] = datapath
-	options = Options(dict)
+	options = Options(settingspath, datapath)
     trials = loadtrials(options)
 	trainingmodels = collect(fit(options,trials[trainingtrials]) for trainingtrials in trainingtrials)
 	testmodels = collect(test(trials[testingtrials], trainingmodel) for (testingtrials, trainingmodel) in zip(testingtrials, trainingmodels))
