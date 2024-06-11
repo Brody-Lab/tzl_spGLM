@@ -15,16 +15,9 @@ RETURN
 """
 function Characterization(testmodel::Model, trainingmodel::Model)
 	𝐄𝐞 = SPGLM.externalinput(testmodel)
-	𝐄𝐞sorted = collect(zeros(trial.T) for trial in testmodel.trials)
-	τ = 0
-	for e in 𝐄𝐞sorted
-		T = length(e)
-		e .= 𝐄𝐞[τ .+ (1:T)]
-		τ = τ + T
-	end
 	inferredrate, autocorrelation = inferrate(𝐄𝐞, testmodel)
 	Characterization(LL = loglikelihood_each_timestep(testmodel, trainingmodel),
-					 externalinput = 𝐄𝐞sorted,
+					 externalinput = 𝐄𝐞,
 					 inferredrate = inferredrate,
 					 autocorrelation = autocorrelation,
 					 observed_spiketrains = collect(trial.y for trial in testmodel.trials),
@@ -59,7 +52,7 @@ end
 """
 	externalinput(model)
 
-RETURN a vector indicating the component of the pre-nonlinearity input external to the model
+RETURN a nested vector indicating the component of the pre-nonlinearity input external to the model. Element `𝐄𝐞sorted[i][t]` corresponds to time step t of trial i.
 
 The component of the pre-activation input from the spikes within the trial is omitted. Length is the number of time steps summed across trials
 """
@@ -88,7 +81,14 @@ function externalinput(model::Model)
 			τ += trial.T
 		end
 	end
-	𝐄𝐞
+	𝐄𝐞sorted = collect(zeros(trial.T) for trial in model.trials)
+	τ = 0
+	for e in 𝐄𝐞sorted
+		T = length(e)
+		e .= 𝐄𝐞[τ .+ (1:T)]
+		τ = τ + T
+	end
+	𝐄𝐞sorted
 end
 
 """
@@ -119,13 +119,13 @@ OPTIONAL ARGUMENT
 -`nsamples`: number of samples to draw
 """
 inferrate(model::Model; nsamples=model.options.sampling_N) = inferrate(externalinput(model), model;nsamples=nsamples)
-function inferrate(𝐄𝐞::Vector{<:AbstractFloat}, model::Model; nsamples=model.options.sampling_N)
+function inferrate(𝐄𝐞::Vector{<:Vector{<:AbstractFloat}}, model::Model; nsamples=model.options.sampling_N)
 	𝐡 = postspikefilter(model)
 	𝚲 = collect((zeros(trial.T) for trial in model.trials))
 	𝐑 = collect((zeros(trial.T-1) for trial in model.trials))
 	τ = 0
-	for (𝛌,𝐫,trial) in zip(𝚲,𝐑,model.trials)
-		inferrate!(𝛌, 𝐫, model.options.dt, 𝐄𝐞[τ+1:τ+trial.T], 𝐡, trial; nsamples=nsamples)
+	for (𝐄𝐞,𝛌,𝐫,trial) in zip(𝐄𝐞,𝚲,𝐑,model.trials)
+		inferrate!(𝛌, 𝐫, model.options.dt, 𝐄𝐞, 𝐡, trial; nsamples=nsamples)
 		τ += trial.T
 	end
 	𝚲, 𝐑
