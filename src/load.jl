@@ -92,7 +92,11 @@ function loadtrials(options::Options)
 	end
 	close(file)
 	if !isempty(options.trial_indices_path)
-		trialindices = DataFrames.DataFrame(CSV.File(options.trial_indices_path; header=0))[:,1]
+		if options.trial_indices_path == "do_not_exclude"
+			trialindices = collect(1:length(Trials["pokedR"]))
+		else
+			trialindices = DataFrames.DataFrame(CSV.File(options.trial_indices_path; header=0))[:,1]
+		end
 	else
 		trialindices = (.!Trials["violated"]) .&
 					   	(Trials["trial_type"] .== "a") .&
@@ -142,9 +146,9 @@ function loadtrials(options::Options)
 		else
 			binedges_s = default_binedges_s
 		end
-		hist = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ binedges_s), closed=:right)
+		hist = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ binedges_s), closed=:left)
 		y = hist.weights
-		ypre = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ pre_binedges), closed=:right).weights
+		ypre = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ pre_binedges), closed=:left).weights
 		if usepose # assumes sampling rate of the pose signals is lower than that of the neural
 			ntimesteps = length(binedges_s)-1
 			pose_sorted = collect(fill(NaN,ntimesteps) for pose in pose)
