@@ -88,8 +88,14 @@ function logevidence(a::Real, memory::MemoryForOptimization, model::Model)
 	𝐇 = memory.∇∇ℓ
 	𝐰ₘₐₚ = model.𝐰
 	a₀ = model.a[1]
-	𝐰 = (a*I - 𝐇) \ ((a₀*I - 𝐇)*𝐰ₘₐₚ)
-	loglikelihood(model,𝐰) - 0.5a*(𝐰⋅𝐰) - 0.5logdet(I - 𝐇./a)
+	A = (a*I - 𝐇)
+	B = ((a₀*I - 𝐇)*𝐰ₘₐₚ)
+	if any(isnan(x) || isinf(x) for x in A) || any(isnan(x) || isinf(x) for x in B)
+		-Inf
+	else
+		𝐰 = A \ B
+		loglikelihood(model,𝐰) - 0.5a*(𝐰⋅𝐰) - 0.5logdet(I - 𝐇./a)
+	end
 end
 logevidence(memory::MemoryForOptimization, model::Model) = logevidence(model.a[1], memory, model)
 logevidence(memory::MemoryForOptimization, model::Model, x::Real) = logevidence(exp(x), memory, model)
