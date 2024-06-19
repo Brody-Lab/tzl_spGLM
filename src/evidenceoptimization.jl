@@ -72,7 +72,7 @@ ARGUMENT
 """
 function maximizeevidence(memory::MemoryForOptimization, model::Model)
 	f(x) = -logevidence(memory, model, x[1])
-	results = optimize(f, exp.(model.a), LBFGS(); autodiff = :forward)
+	results = optimize(f, log.(model.a), LBFGS(linesearch = LineSearches.BackTracking()); autodiff = :forward)
 	exp(Optim.minimizer(results)[1])
 end
 
@@ -90,11 +90,12 @@ function logevidence(a::Real, memory::MemoryForOptimization, model::Model)
 	a₀ = model.a[1]
 	A = (a*I - 𝐇)
 	B = ((a₀*I - 𝐇)*𝐰ₘₐₚ)
-	if any(isnan(x) || isinf(x) for x in A) || any(isnan(x) || isinf(x) for x in B)
+	(L, Lsign) = logabsdet(I - 𝐇./a)
+	if (Lsign != 1.0) || any(isnan(x) || isinf(x) for x in A) || any(isnan(x) || isinf(x) for x in B)
 		-Inf
 	else
 		𝐰 = A \ B
-		loglikelihood(model,𝐰) - 0.5a*(𝐰⋅𝐰) - 0.5logdet(I - 𝐇./a)
+		loglikelihood(model,𝐰) - 0.5a*(𝐰⋅𝐰) - 0.5L
 	end
 end
 logevidence(memory::MemoryForOptimization, model::Model) = logevidence(model.a[1], memory, model)
