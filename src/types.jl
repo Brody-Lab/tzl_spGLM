@@ -71,14 +71,17 @@ Model settings
 	"""
 	hyperparameters specifying whether include an inputs. Be careful to avoid redundancies, such as setting both "input_click=true" and "input_leftclick=true," which contributes to trade-offs in the parameter estimates
 	"""
-	input_click::TB = false "all clicks: left, right, and stereo"
+	"all clicks: left, right, and stereo"
+	input_click::TB = false
 	input_leftclick::TB = true
 	input_rightclick::TB = true
 	input_stereoclick::TB = true
 	input_movement::TB = false
-	input_leftmovement::TB = true "trial ending in a left choice only"
+	"trial ending in a left choice only"
+	input_leftmovement::TB = true
 	input_rightmovement::TB = true
-	input_pose::TB = false "whether `'`pose summary` acts as an input. A file path must be provided as `pose_filepath`"
+	"whether `'`pose summary` acts as an input. A file path must be provided as `pose_filepath`"
+	input_pose::TB = false
 	input_postspike::TB = true
 	input_response::TB = false
 	input_leftresponse::TB = false
