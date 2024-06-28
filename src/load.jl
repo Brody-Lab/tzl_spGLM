@@ -67,8 +67,10 @@ function Options(options::Dict)
 		@assert !isempty(getfield(options, fieldname))
 	end
 	@assert isfile(options.datapath)
-	!isdir(options.outputpath) && mkpath(options.outputpath)
-	@assert isdir(options.outputpath)
+	if options.outputpath != "placeholder"
+		!isdir(options.outputpath) && mkpath(options.outputpath)
+		@assert isdir(options.outputpath)
+	end
 	return options
 end
 
