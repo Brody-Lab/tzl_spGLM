@@ -5,16 +5,16 @@ Model settings
 """
 @with_kw struct Options{TB<:Bool, TF<:AbstractFloat, TI<:Integer, TS<:String}
 	"""
-	hyperparameters for estimating the slowly-drift baseline across minutes in a session
+	hyperparameters for estimating the component of the baseline from changes across trials
 	"""
 	baseline_L2max::TF=1e10
 	baseline_L2min::TF=1e1
 	baseline_L2n::TI=10
-	"absolute path to a `.MAT` file containing spike counts from a time period before the trial to be used to estimate the slowly drifting baseline. This file should contain a matrix of floats of size #trials-by-#neurons. All neurons were simultaneously recorded, and includes the spike counts from the neuron being analyzed as well."
+	"absolute path to a `.MAT` file containing spike counts from a time period before the trial to be used to estimate the across-trial contribution to the baseline. This file should contain a matrix of floats of size #trials-by-#neurons. All neurons should be simultaneously recorded, and includes the spike counts from the neuron to which the GLM is being fitted as well."
 	baseline_pretrial_spikecounts_path::TS=""
-	"whether to use time in session as baseline input"
+	"whether to use time in session to estimate the across-trial contribution to the baseline"
 	baseline_time_in_session::TB=false
-	"if using time in session as trial-varying baseline input, this parameter is the number of basis functions to include"
+	"if using time in session for quantifying the trial-varying component of the baseline, this parameter specifies the number of basis functions to use"
 	baseline_time_in_session_D::TI=8
 	"""
 	the hyperparameters below specify the parametrization of each set of basis functions

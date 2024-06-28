@@ -33,7 +33,7 @@ function perievent_time_histograms(basissets::Vector{<:BasisFunctionSet}, 𝚲::
 	𝐲 = vcat(Y...)
 	if reference_event==options.reference_event
 		basisindex = first(findall((set)->set.name==:time_in_trial, basissets))
-		reference_timesteps = collect([findfirst(trial.timesteps_s .> 0)] for trial in trials)
+		reference_timesteps = collect([findfirst(trial.timesteps_s .>= 0)] for trial in trials)
 	elseif reference_event=="movement"
 		basisindex = first(findall((set)->set.name==:movement, basissets))
 		reference_timesteps = collect([trial.movement_timestep] for trial in trials)
@@ -77,14 +77,22 @@ function perievent_time_histograms(basissets::Vector{<:BasisFunctionSet}, 𝚲::
 		Nb = length(timesteps_s)-Na
 	end
 	peths = map(collect(fieldnames(SPGLM.PETHSet))) do condition
-		trialindices = collect(SPGLM.selecttrial(condition, trial) for trial in trials)
-		observed = align_and_average(reference_timesteps[trialindices], Na, Nb, Y[trialindices])./options.dt
-		predicted = align_and_average(reference_timesteps[trialindices], Na, Nb, 𝚲[trialindices])./options.dt
-		SPGLM.PerieventTimeHistogram(condition=String(condition),
-								observed=observed,
-							   	predicted=predicted,
-							   	reference_event=reference_event,
-							   	timesteps_s=collect(timesteps_s))
+				trialindices = collect(SPGLM.selecttrial(condition, trial) for trial in trials)
+				if sum(trialindices)==0
+					SPGLM.PerieventTimeHistogram(condition=String(condition),
+											observed=fill(NaN, length(timesteps_s)),
+											predicted=fill(NaN, length(timesteps_s)),
+											reference_event=reference_event,
+											timesteps_s=collect(timesteps_s))
+				else
+					observed = align_and_average(reference_timesteps[trialindices], Na, Nb, Y[trialindices])./options.dt
+					predicted = align_and_average(reference_timesteps[trialindices], Na, Nb, 𝚲[trialindices])./options.dt
+					SPGLM.PerieventTimeHistogram(condition=String(condition),
+											observed=observed,
+										   	predicted=predicted,
+										   	reference_event=reference_event,
+										   	timesteps_s=collect(timesteps_s))
+				end
 		end
 end
 
@@ -92,6 +100,9 @@ end
 	align_and_average
 
 Align time series and average
+
+RETURN
+-a vector of floats
 
 ARGUMENT
 -`reference_timesteps`: a nested vector of positive integers indicating the time step on which a reference event occurred in the source time series. Element `reference_timesteps[i][j]` indicates the time step when on trial `i`, the occurrence of the j-th event on that trial

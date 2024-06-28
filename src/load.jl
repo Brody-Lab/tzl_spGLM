@@ -153,7 +153,7 @@ function loadtrials(options::Options)
 			ntimesteps = length(binedges_s)-1
 			pose_sorted = collect(fill(NaN,ntimesteps) for pose in pose)
 			for j = 1:ntimesteps
-				index = findfirst(reference_time_s+binedges_s[j] .>= pose_time_s)
+				index = findfirst(pose_time_s .>= (reference_time_s+binedges_s[j]))
 				for k in eachindex(pose)
 					pose_sorted[k][j] = sum(pose[k][index])
 				end
