@@ -17,16 +17,16 @@ Model settings
 	"if using time in session for quantifying the trial-varying component of the baseline, this parameter specifies the number of basis functions to use"
 	baseline_time_in_session_D::TI=8
 	"""
-	the hyperparameters below specify the parametrization of each set of basis functions
+	the hyperparameters below specify the parametrization of each set of basis function ("bfs"). Each hyparameter is associated with an event in the Poisson Clicks task, such as a click, movement (i.e., "cpoke_out"), or response (i.e., "spoke"), or associated with the neuron's own spiking (i.e., spike history). The hyperparameters attributed to "time_in_trial" are related to the whichever task event set as the reference event to which spike trains are aligned on each trial. This is typically the stereoclick.
 		- `begin_s`: time relative to the event at which the kernel begins
+		- `begins0`: whether the filter must begin with the value 0
+		- `D`: number of basis functions
+		- `distortion`: the magnitude to which basis functions are compressed close in time to the event and dilated far in time from the event.
+		- `distortion_s`: time of maximal distortion. If this is set to 0, then maximal distortion occurs at the time of the event.
 		- `end_s`: time relative to the event at which the kernel ends
-		- `begins0`: whether the first value of the kernel begins at zero
-		- `ends0`: whether the last value of the kernel begins at zero
-		- `N`: whether the first value of the kernel begins at zero
-		- `distortion`: nonlinearity in the parametrization of the kernel. Ignored unless larger than 0.
-		- `distortion_s`: time when the distortion is maximized
+		- `ends0`: whether the filter must end with the value 0
 	"""
-	"click-aligned linear filter"
+	"linear filter aligned to each click (left, right, and stereo)"
 	bfs_click_begin_s::TF= 0.01
 	bfs_click_begins0::TB=true
 	bfs_click_D::TI=3
@@ -34,7 +34,7 @@ Model settings
 	bfs_click_distortion_s::TF=0.05
 	bfs_click_end_s::TF=0.3; @assert bfs_click_end_s > bfs_click_begin_s
 	bfs_click_ends0::TB=false
-	"movement-aligned linear filter"
+	"linear filter aligned to the movement (i.e., 'cpoke_out')"
 	bfs_movement_begin_s::TF = -1.0
 	bfs_movement_end_s::TF = -0.01; @assert bfs_movement_end_s > bfs_movement_begin_s
 	bfs_movement_begins0::TB=true
@@ -42,7 +42,7 @@ Model settings
 	bfs_movement_D::TI=3
 	bfs_movement_distortion::TF=0.1
 	bfs_movement_distortion_s::TF=-0.01
-	"response-aligned linear filter"
+	"linear filter aligned to the response (i.e., 'spoke')"
 	bfs_response_begin_s::TF = -0.5
 	bfs_response_end_s::TF = 0.01; @assert bfs_response_end_s > bfs_response_begin_s
 	bfs_response_begins0::TB=true
@@ -69,16 +69,16 @@ Model settings
 	"duration of each timestep in seconds"
 	dt::TF=0.01
 	"""
-	hyperparameters governing the inputs
+	hyperparameters specifying whether include an inputs. Be careful to avoid redundancies, such as setting both "input_click=true" and "input_leftclick=true," which contributes to trade-offs in the parameter estimates
 	"""
-	input_click::TB = false
+	input_click::TB = false "all clicks: left, right, and stereo"
 	input_leftclick::TB = true
 	input_rightclick::TB = true
 	input_stereoclick::TB = true
 	input_movement::TB = false
-	input_leftmovement::TB = true
+	input_leftmovement::TB = true "trial ending in a left choice only"
 	input_rightmovement::TB = true
-	input_pose::TB = false
+	input_pose::TB = false "whether `'`pose summary` acts as an input. A file path must be provided as `pose_filepath`"
 	input_postspike::TB = true
 	input_response::TB = false
 	input_leftresponse::TB = false
@@ -86,10 +86,8 @@ Model settings
 	input_time_in_trial::TB = true; @assert input_time_in_trial
 	"maximum number of iterations for learning the parameters"
 	opt_iterations_parameters::TI = 20
-	"maximum number of iterations for learning the hyperparameters "
+	"maximum number of iterations for learning a single hyperparameter that serves as the precision of the Gaussian prior on the encoding weights"
 	opt_iterations_hyperparameters::TI = 3
-	"maximum number of iterations for learning the hyperparameters "
-	opt_MAP_convergence_g_tol::TI = 3
 	"optimization method"
 	opt_method::TS="evidenceoptimization"
 	"absolute path to a file containing the pose measurements. The file should be a MAT file containing an variable `posesignals` that is a T-by-D matrix, where T is the number of samples and D the dimensionality of the signal. The file should also contain a variable `firstframetime_s` that indicates the time of the first frame and a variable `samplingrate_hz` indicating the sampling rate in hertz"

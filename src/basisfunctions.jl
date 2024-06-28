@@ -76,7 +76,7 @@ function BasisFunctionSet(setname::Symbol, options::Options)
 end
 
 """
-    basisfunctions(nvalues, nfunctions)
+    basisfunctions(nvalues, D)
 
 Nonlinear basis functions of an one-dimensional integer input
 

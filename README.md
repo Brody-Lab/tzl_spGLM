@@ -1,5 +1,39 @@
 # tzl_spGLM
-Generalized linear model of the spike train of a neuron recorded in the Poisson Clicks task
+A package for fitting Poisson generalized linear models (GLM) to the spike trains of a neuron recorded in the Poisson Clicks task
+
+# data
+Spike times and the times of task events are loaded from a MATLAB `MAT` file. Spikes are counted in time bins of  $\Delta t$ seconds aligned to a reference event on each trial to give spike train $y$. GLM's are fitted to the spike train $y$. 
+
+# model
+On time step $t$ of trial $m$, the spike train observation $y_{m,t}$, given the inputs to the model, is modelled as a Poisson random variable whose intensity is given by 
+
+$$
+\lambda_{m,t} = \text{softplus}\left( w\cdot b_m + \sum_i (k^{(i)} * x_m^{(i)})(t) \right)
+$$
+
+where $b_m$ is a scalar trial-varying input (described below). Both $b_m$ and its scalar encoding  parameter $w$ is learned from the data.
+
+The time series $x_m^{(i)}$ indicates the input related to event $i$ in the trial (nose-fixation, stereoclick, movement, or response). The input is an impulse function that gives the value of 1 on the time step when the event occurred and is otherwise zero (i.e., the integral of a delta function over each time bin).
+
+The input is convolved $(\cdot * \cdot)$ with linear filter $k_i$ to capture the time-varying effect of event $i$ on the neuron's probability of spiking. The filter is learned as a linear combination of basis functions.
+
+$$
+k_i = \Phi_i w_i
+$$
+
+where the columns of matrix $\Phi$ correspond to basis functions and rows time steps. Example basis functions are shown below. Each plot corresponds to a set of basis functions, and each color is a individual basis function of that set.
+
+<img src="/example/analysis_2024_04_25b_externalinput/plotbasisset.svg" width = "800">
+
+For the set related to "response" (i.e., "spoke"), $\Phi$ has two columns, and the encoding vector $w$ is two dimensional. 
+
+### trial-varying baseline
+The trial-varying baseline $b_m$ is learned through L2-penalized linear regression as a preliminary step before fitting the GLM. The inputs (regressors) are the spike count of the simultaneously recorded population 2 seconds before fixation, giving a design matrix $X$ of dimensions trials-by-neurons. The response (regressand) $y$ are the mean firing rate between fixation onset and entry into the side port (side poke). The L2 regularization penalty $\lambda$ was selected across ten values from $10$ to $1e10$, and selected using a 5-fold cross-validation scheme. If either the smallest ($\lambda=10$) or the largest $(1e10)$ value gives the lowest out-of-sample mean squared error, the model was not fit. After identify the optimal L2 penalty $\hat{\lambda}$, the baseline is estimated using all trials as
+
+$$
+b \equiv X \left[ (X^\top X + \hat{\lambda}I)^{-1} X^\top y \right]
+$$
+
 
 ## example
 
