@@ -33,6 +33,8 @@ function inputs_each_timestep(bfs::BasisFunctionSet, inputname::Symbol, trials::
 		postspikeinputs(bfs, trials)
 	elseif inputname == :time_in_trial
 		vcat(collect(bfs.Φ[1:trial.T,:] for trial in trials)...)
+	elseif inputname == :fixation
+		fixationinputs(bfs, NaN, trials)
 	else
 		error("unrecognized input")
 	end
@@ -103,6 +105,40 @@ function movementinputs(bfs::BasisFunctionSet, laterality::Real, trials::Vector{
 				else
 					j₀ = Na - trial.movement_timestep + 1
 					for (t,j) in zip(1:trial.T, j₀:N)
+						𝐔[τ+t,:] = bfs.Φ[j,:]
+					end
+				end
+			end
+			τ += trial.T
+		end
+	end
+	return 𝐔
+end
+
+"""
+	fixationinputs(bfs, source, trials)
+
+RETURN columns of the design matrix containing inputs related to time of the onset fixation (i.e., 'cpoke_in')
+
+ARGUMENT
+-`bfs`: a set of basis functions
+-`laterality`: whether the decision is leftward (`0`), rightward (`1`), or non-laterality(`NaN`)
+-`trials`: vector of trials
+"""
+function fixationinputs(bfs::BasisFunctionSet, laterality::Real, trials::Vector{<:Trial})
+	N, D = size(bfs.Φ)
+	∑T = sum(collect(trial.T for trial in trials))
+	𝐔 = zeros(∑T, D)
+	dt = bfs.timesteps_s[2]-bfs.timesteps_s[1]
+	bfs_timesteps = ceil.(Int, bfs.timesteps_s./dt)
+	if D > 0
+		τ = 0
+		for trial in trials
+			if isnan(laterality) || (laterality==trial.choice)
+				j₀ = -trial.fixation_timestep
+				for t = 1:trial.T
+					j = j₀ + t
+					if (j >= 1) || (j <= N)
 						𝐔[τ+t,:] = bfs.Φ[j,:]
 					end
 				end

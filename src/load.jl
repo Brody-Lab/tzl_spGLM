@@ -165,6 +165,7 @@ function loadtrials(options::Options)
 		end
 		@assert !isnan(Trials["stateTimes"]["cpoke_out"][i])
 		t₀ = reference_time_s + binedges_s[1]
+		fixation_timestep = ceil(Int, (Trials["stateTimes"]["cpoke_in"][i] - t₀)/options.dt)
 		movement_timestep = ceil(Int, (Trials["stateTimes"]["cpoke_out"][i] - t₀)/options.dt)
 		leftclicks_s = Trials["leftBups"][i] .+ Trials["stateTimes"]["clicks_on"][i] .- t₀
 		rightclicks_s = Trials["rightBups"][i] .+ Trials["stateTimes"]["clicks_on"][i] .- t₀
@@ -185,6 +186,7 @@ function loadtrials(options::Options)
 				clicks_source=clicks_source,
 				clicks_timestep=clicks_timestep,
 				first_reference_time_s=first_reference_time_s,
+				fixation_timestep = fixation_timestep,
 				γ = Trials["gamma"][i],
 				last_reference_time_s=last_reference_time_s,
 				movement_timestep = movement_timestep,

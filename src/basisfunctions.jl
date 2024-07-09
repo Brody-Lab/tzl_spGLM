@@ -6,7 +6,7 @@ RETURN a vector of symbols indicating the standard collection of basis sets
 No ARGUMENT
 """
 function basis_function_sets()
-	[:click, :movement, :postspike, :response, :time_in_trial]
+	[:click, :fixation, :movement, :postspike, :response, :time_in_trial]
 end
 
 """
@@ -27,6 +27,8 @@ function match_input_to_basis(inputname::Symbol)
 		:postspike
 	elseif inputname == :time_in_trial
 		:time_in_trial
+    elseif inputname == :fixation
+		:fixation
 	else
 		error("unrecognized name of input")
 	end

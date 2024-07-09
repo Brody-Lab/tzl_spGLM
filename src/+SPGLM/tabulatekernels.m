@@ -17,6 +17,7 @@ for name = field_names
         T.(name) = string(T.(name));
     end
 end
-% T.inputname(T.inputname == "time_in_trial") = "time_in_trial";
+T.event= T.inputname;
+T.event(T.event == "time_in_trial") = "fixation";
 
 T = struct2table(T);

@@ -34,6 +34,14 @@ Model settings
 	bfs_click_distortion_s::TF=0.05
 	bfs_click_end_s::TF=0.3; @assert bfs_click_end_s > bfs_click_begin_s
 	bfs_click_ends0::TB=false
+	"linear filter aligned to the fixation onset (i.e., 'cpoke_in')"
+	bfs_fixation_begin_s::TF = 0.0
+	bfs_fixation_end_s::TF = 1.5; @assert bfs_movement_end_s > bfs_movement_begin_s
+	bfs_fixation_begins0::TB=false
+	bfs_fixation_ends0::TB=true
+	bfs_fixation_D::TI=4
+	bfs_fixation_distortion::TF=0.1
+	bfs_fixation_distortion_s::TF=-0.0
 	"linear filter aligned to the movement (i.e., 'cpoke_out')"
 	bfs_movement_begin_s::TF = -1.0
 	bfs_movement_end_s::TF = -0.01; @assert bfs_movement_end_s > bfs_movement_begin_s
@@ -76,6 +84,7 @@ Model settings
 	input_leftclick::TB = true
 	input_rightclick::TB = true
 	input_stereoclick::TB = true
+	input_fixation::TB = false
 	input_movement::TB = false
 	"trial ending in a left choice only"
 	input_leftmovement::TB = true
@@ -132,11 +141,13 @@ Sensory stimuli, behavior, and spike train on each trial
 	clicks_timestep::TVI
 	"first complete trial in the session"
 	first_reference_time_s::TF
+	"time step of entering the center port (i.e., 'cpoke_in')"
+	fixation_timestep::TI
 	"log of the ratio of the generative right and left click rate"
 	γ::TF
 	"last complete trial in the session"
 	last_reference_time_s::TF
-	"time step of leaving the center port"
+	"time step of leaving the center port (i.e., 'cpoke_out')"
 	movement_timestep::TI
 	"pose measurements"
 	pose::VVF

@@ -13,7 +13,7 @@ perievent_time_histograms(𝚲::Vector{<:Vector{<:AbstractFloat}}, model::Model)
 
 function perievent_time_histograms(basissets::Vector{<:BasisFunctionSet}, 𝚲::Vector{<:Vector{<:AbstractFloat}}, options::Options, trials::Vector{<:Trial})
 	reference_events = [options.reference_event; "movement"; "stereoclick"]
-	for event in ["leftclick";  "rightclick"; "response"; "leftresponse"; "rightresponse"]
+	for event in ["fixation"; "leftclick";  "rightclick"; "response"; "leftresponse"; "rightresponse"]
 		getfield(options, Symbol("input_"*event)) && (reference_events = vcat(reference_events, event))
 	end
 	reference_events = unique(reference_events)
@@ -33,10 +33,13 @@ function perievent_time_histograms(basissets::Vector{<:BasisFunctionSet}, 𝚲::
 	𝐲 = vcat(Y...)
 	if reference_event==options.reference_event
 		basisindex = first(findall((set)->set.name==:time_in_trial, basissets))
-		reference_timesteps = collect([findfirst(trial.timesteps_s .>= 0)] for trial in trials)
+		reference_timesteps = collect([findfirst(trial.timesteps_s .> 0)] for trial in trials)
 	elseif reference_event=="movement"
 		basisindex = first(findall((set)->set.name==:movement, basissets))
 		reference_timesteps = collect([trial.movement_timestep] for trial in trials)
+	elseif reference_event=="fixation"
+		basisindex = first(findall((set)->set.name==:fixation, basissets))
+		reference_timesteps = collect([trial.fixation_timestep] for trial in trials)
 	elseif reference_event=="response"
 		basisindex = first(findall((set)->set.name==:response, basissets))
 		reference_timesteps = collect([trial.response_timestep] for trial in trials)
@@ -69,13 +72,7 @@ function perievent_time_histograms(basissets::Vector{<:BasisFunctionSet}, 𝚲::
 		error("unrecognized reference event")
 	end
 	timesteps_s = basissets[basisindex].timesteps_s
-	Na = findfirst(timesteps_s.>0)
-	if isnothing(Na)
-		Na = length(timesteps_s)
-		Nb = 0
-	else
-		Nb = length(timesteps_s)-Na
-	end
+	timesteps = ceil.(Int, timesteps_s./options.dt)
 	peths = map(collect(fieldnames(SPGLM.PETHSet))) do condition
 				trialindices = collect(SPGLM.selecttrial(condition, trial) for trial in trials)
 				if sum(trialindices)==0
@@ -85,8 +82,8 @@ function perievent_time_histograms(basissets::Vector{<:BasisFunctionSet}, 𝚲::
 											reference_event=reference_event,
 											timesteps_s=collect(timesteps_s))
 				else
-					observed = align_and_average(reference_timesteps[trialindices], Na, Nb, Y[trialindices])./options.dt
-					predicted = align_and_average(reference_timesteps[trialindices], Na, Nb, 𝚲[trialindices])./options.dt
+					observed = align_and_average(reference_timesteps[trialindices], timesteps, Y[trialindices])./options.dt
+					predicted = align_and_average(reference_timesteps[trialindices], timesteps, 𝚲[trialindices])./options.dt
 					SPGLM.PerieventTimeHistogram(condition=String(condition),
 											observed=observed,
 										   	predicted=predicted,
@@ -106,26 +103,21 @@ RETURN
 
 ARGUMENT
 -`reference_timesteps`: a nested vector of positive integers indicating the time step on which a reference event occurred in the source time series. Element `reference_timesteps[i][j]` indicates the time step when on trial `i`, the occurrence of the j-th event on that trial
--`Na`: number of time steps before and including the reference event in the target time series
--`Nb`: number of time steps after the reference event in the target time series
+-`timesteps`: a vector of positive integers indicating the time steps relative to the reference event of the PETH
 -`X`: source time series. Element `X[i][t]` corresponds to time step `t` on trial `i`
 """
-function align_and_average(reference_timesteps::Vector{<:Vector{<:Integer}}, Na::Integer, Nb::Integer, X::Vector{<:Vector{<:Real}})
-	N = Na + Nb
+function align_and_average(reference_timesteps::Vector{<:Vector{<:Integer}}, timesteps::Vector{<:Integer}, X::Vector{<:Vector{<:Real}})
+	N = length(timesteps)
 	∑x = zeros(N)
 	w = zeros(N)
 	for (ts_ref,x) in zip(reference_timesteps,X)
+		T = length(x)
 		for tref in ts_ref
-			tb = min(length(x)-tref, Nb)
-			ib = tref + tb
-			jb = Na + tb
-			ta = min(tref-1, Na-1)
-			ia = tref - ta
-			ja = Na - ta
-			if (ia>0) & (ib>0) & (ja>0) & (jb>0)
-				for (i,j) in zip(ia:ib, ja:jb)
-					∑x[j] += x[i]
-					w[j] +=1
+			for i = 1:N
+				j = timesteps[i] + tref - 1
+				if (j>=1) && (j<=T)
+					∑x[i] += x[j]
+					w[i] += 1
 				end
 			end
 		end
