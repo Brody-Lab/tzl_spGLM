@@ -52,18 +52,18 @@ ARGUMENT
 -`setname`: a symbol identifying the basis function set
 -`options`: a struct containing the fixed hyperparameters
 """
-function BasisFunctionSet(setname::Symbol, options::Options)
+function BasisFunctionSet(setname::Symbol, options::Options, trials::Vector{<:Trial})
 	if setname==:time_in_trial
-		begin_s = getfield(options, :time_in_trial_begin_s)
-		end_s = getfield(options, :time_in_trial_end_s)
+		begin_s = minimum(trial.timesteps_s[1] for trial in trials)
+        end_s = maximum(trial.timesteps_s[end] for trial in trials)
 	else
 		begin_s = getfield(options, Symbol("bfs_"*String(setname)*"_begin_s"))
 		end_s = getfield(options, Symbol("bfs_"*String(setname)*"_end_s"))
 	end
 	D = getfield(options, Symbol("bfs_"*String(setname)*"_D"))
-	begin_s = floor(begin_s/options.dt)*options.dt
+	begin_s = ceil(begin_s/options.dt)*options.dt
 	end_s = ceil(end_s/options.dt)*options.dt
-	timesteps_s = (begin_s+options.dt):options.dt:end_s
+	timesteps_s = begin_s:options.dt:end_s
 	N = length(timesteps_s)
 	distortion_s = getfield(options, Symbol("bfs_"*String(setname)*"_distortion_s"))
 	ηindex = ceil(Int, (distortion_s-begin_s)/options.dt)

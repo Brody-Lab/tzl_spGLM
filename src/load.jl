@@ -112,9 +112,6 @@ function loadtrials(options::Options)
 		trialindices = findall(vec(trialindices))
 	end
 	Na = floor(Int, options.time_in_trial_begin_s/options.dt)
-	Nb = ceil(Int, options.time_in_trial_end_s/options.dt)
-	default_binedges_s = (Na*options.dt):options.dt:(Nb*options.dt)
-	default_N = length(default_binedges_s)
 	Npre = ceil(Int, (options.bfs_postspike_end_s-options.bfs_postspike_begin_s)/options.dt)
 	pre_binedges = -Npre*options.dt:options.dt:0
 	spiketimes_s = vec(Cell["spiketimes_s"])
@@ -138,16 +135,17 @@ function loadtrials(options::Options)
 		else
 			reference_time_s = Trials["stateTimes"][options.reference_event][i]
 		end
-		if !isempty(options.trim_after_event)
-			lasttimestep = 1+floor(Int, (Trials["stateTimes"][options.trim_after_event][i]-reference_time_s-default_binedges_s[1])/options.dt)
-			if lasttimestep < default_N
-				binedges_s = default_binedges_s[1:lasttimestep]
-			else
-				binedges_s = default_binedges_s
-			end
-		else
-			binedges_s = default_binedges_s
+		if isnan(options.time_in_trial_end_s) && !isempty(options.trim_after_event) # the trial is truncated with respect to only `trim_after_event` and not `reference_event`
+			Nb = 1+floor(Int, (Trials["stateTimes"][options.trim_after_event][i]-reference_time_s)/options.dt)
+		elseif !isnan(options.time_in_trial_end_s) && !isempty(options.trim_after_event) # the trial is truncated with respect to both `trim_after_event` and `reference_event`
+			lasttimestep1 = 1+floor(Int, (Trials["stateTimes"][options.trim_after_event][i]-reference_time_s)/options.dt)
+			lasttimestep2 = ceil(Int, options.time_in_trial_end_s/options.dt)
+			Nb = min(lasttimestep1,lasttimestep2)
+			@assert Nb > 0
+		else # the trial is truncated with respect to only `reference_event` and not `trim_after_event`
+			Nb = ceil(Int, options.time_in_trial_end_s/options.dt)
 		end
+		binedges_s = (Na*options.dt):options.dt:(Nb*options.dt)
 		hist = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ binedges_s), closed=:left)
 		y = hist.weights
 		ypre = StatsBase.fit(Histogram, spiketimes_s, (reference_time_s .+ pre_binedges), closed=:left).weights
@@ -235,7 +233,7 @@ function Model(options::Options, trials::Vector{<:Trial}, 𝐰_baseline::Vector{
 		𝐛 = collect(NaN for trial in trials)
 	end
 	setnames = SPGLM.basis_function_sets()
-	basissets = collect(BasisFunctionSet(setname, options) for setname in setnames)
+	basissets = collect(BasisFunctionSet(setname, options, trials) for setname in setnames)
 	indices = UnitRange{Int}[]
 	k = 0
 	for inputname in fieldnames(SPGLM.WeightIndices)
