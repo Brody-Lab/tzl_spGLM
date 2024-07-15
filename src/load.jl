@@ -135,10 +135,11 @@ function loadtrials(options::Options)
 		else
 			reference_time_s = Trials["stateTimes"][options.reference_event][i]
 		end
+		t₀ = reference_time_s + Na*options.dt
 		if isnan(options.time_in_trial_end_s) && !isempty(options.trim_after_event) # the trial is truncated with respect to only `trim_after_event` and not `reference_event`
-			Nb = 1+floor(Int, (Trials["stateTimes"][options.trim_after_event][i]-reference_time_s)/options.dt)
+			Nb = floor(Int, (Trials["stateTimes"][options.trim_after_event][i]-t₀)/options.dt)
 		elseif !isnan(options.time_in_trial_end_s) && !isempty(options.trim_after_event) # the trial is truncated with respect to both `trim_after_event` and `reference_event`
-			lasttimestep1 = 1+floor(Int, (Trials["stateTimes"][options.trim_after_event][i]-reference_time_s)/options.dt)
+			lasttimestep1 = floor(Int, (Trials["stateTimes"][options.trim_after_event][i]-t₀)/options.dt)
 			lasttimestep2 = ceil(Int, options.time_in_trial_end_s/options.dt)
 			Nb = min(lasttimestep1,lasttimestep2)
 			@assert Nb > 0
@@ -162,7 +163,6 @@ function loadtrials(options::Options)
 			pose_sorted = collect(zeros(0) for i=1:length(trialindices))
 		end
 		@assert !isnan(Trials["stateTimes"]["cpoke_out"][i])
-		t₀ = reference_time_s + binedges_s[1]
 		fixation_timestep = ceil(Int, (Trials["stateTimes"]["cpoke_in"][i] - t₀)/options.dt)
 		movement_timestep = ceil(Int, (Trials["stateTimes"]["cpoke_out"][i] - t₀)/options.dt)
 		leftclicks_s = Trials["leftBups"][i] .+ Trials["stateTimes"]["clicks_on"][i] .- t₀
