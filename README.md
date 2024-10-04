@@ -1,8 +1,21 @@
 # tzl_spGLM
 A package for fitting Poisson generalized linear models (GLM) to the spike trains of a neuron recorded in the Poisson Clicks task
 
+# system requirements
+This software has been tested on Julia 1.10.0 and MATLAB R2023a.
+
+# installation
+
+```julia-repl
+> using Pkg
+> Pkg.add(url="https://github.com/Brody-Lab/tzl_spGLM.git")
+```
+The installation should take no more than 5 minutes.
+
 # data
-Spike times and the times of task events are loaded from a MATLAB `MAT` file. Spikes are counted in time bins of  $\Delta t$ seconds aligned to a reference event on each trial to give spike train $y$. GLM's are fitted to the spike train $y$. 
+Spike times and the times of task events are loaded from a MATLAB `MAT` file. Spikes are counted in time bins of  $\Delta t$ seconds aligned to a reference event on each trial to give spike train $y$. GLM's are fitted to the spike train $y$.
+
+An example data file is located at [here](/example/analysis_2024_04_22a_test_SPGLM/T176_2018_05_04_619040938_426.mat).
 
 # model
 On time step $t$ of trial $m$, the spike train observation $y_{m,t}$, given the inputs to the model, is modelled as a Poisson random variable whose intensity is given by 
@@ -121,6 +134,7 @@ julia> SPGLM.save(model)
 julia> SPGLM.save(eo, model.options.outputpath)
 julia> SPGLM.save(characterization, model.options.outputpath)
 ```
+This should take no more than a few mintues
 
 ### MATLAB command window
 Let's check whether the model actually fit the data, using utilities in [+SPGLM](/src/+SPGLM/) and [+TZL](https://github.com/Brody-Lab/tzluo/tree/master/%2BTZL)
