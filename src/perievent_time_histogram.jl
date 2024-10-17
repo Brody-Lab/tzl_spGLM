@@ -33,7 +33,11 @@ function perievent_time_histograms(basissets::Vector{<:BasisFunctionSet}, 𝚲::
 	𝐲 = vcat(Y...)
 	if reference_event==options.reference_event
 		basisindex = first(findall((set)->set.name==:time_in_trial, basissets))
-		reference_timesteps = collect([findfirst(trial.timesteps_s .> 0)] for trial in trials)
+		if options.time_in_trial_end_s == 0.0
+			reference_timesteps = collect([findfirst(trial.timesteps_s .== 0)] for trial in trials)
+		else
+			reference_timesteps = collect([findfirst(trial.timesteps_s .> 0)] for trial in trials)
+		end
 	elseif reference_event=="movement"
 		basisindex = first(findall((set)->set.name==:movement, basissets))
 		reference_timesteps = collect([trial.movement_timestep] for trial in trials)

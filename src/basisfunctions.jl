@@ -59,10 +59,10 @@ function BasisFunctionSet(setname::Symbol, options::Options, trials::Vector{<:Tr
 	else
 		begin_s = getfield(options, Symbol("bfs_"*String(setname)*"_begin_s"))
 		end_s = getfield(options, Symbol("bfs_"*String(setname)*"_end_s"))
+        begin_s = ceil(begin_s/options.dt)*options.dt
+        end_s = ceil(end_s/options.dt)*options.dt
 	end
 	D = getfield(options, Symbol("bfs_"*String(setname)*"_D"))
-	begin_s = ceil(begin_s/options.dt)*options.dt
-	end_s = ceil(end_s/options.dt)*options.dt
 	timesteps_s = begin_s:options.dt:end_s
 	N = length(timesteps_s)
 	distortion_s = getfield(options, Symbol("bfs_"*String(setname)*"_distortion_s"))
