@@ -106,6 +106,8 @@ Model settings
 	pose_filepath::TS=""
 	"default value of the precision hyperparameter"
 	precision::TF=1e-2
+	"name of the research project for which the model is being run, e.g., 'auditory'."	
+	projectname::TS = ""
 	"number of samples used to compute the expected emissions and peri-event time histograms"
 	sampling_N::TI = 100
 	"absolute path of the folder where the model output, including the summary and predictions, are saved"

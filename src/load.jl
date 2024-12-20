@@ -75,6 +75,25 @@ function Options(options::Dict)
 end
 
 """
+RETURN a `Dict` containing the default values of the fixed hyperparameters ("options") of the model 
+"""
+dictionary_default_options() = SPGLM.dictionary(SPGLM.Options())
+
+"""
+	Options(options, fieldname, value)
+
+Replace the value of a field in an instance of the struct `Options`
+
+ARGUMENT
+-`options`: a structure containing the fixed hyperparameters of the model
+-`fieldname`: the field to be replaced
+-`value`: the new value of the field
+"""
+function Options(options::Options, fieldname::Symbol, value)
+	Options(Dict((String(name)=>(name==fieldname ? value : getfield(options,name)) for name in fieldnames(SPGLM.Options))...))
+end
+
+"""
 	loadtrials(options)
 
 RETURN a vector of objects of the composite type `trials`
@@ -83,6 +102,24 @@ ARGUMENT
 -`options`: a structure containing fixed hyperparameters
 """
 function loadtrials(options::Options)
+	if (options.projectname == "") || (options.projectname == "manuscript2023a")
+		loadtrials_manuscript2023a(options)
+	elseif options.projectname == "auditory"
+		loadtrials_auditory(options)
+	end
+end
+
+"""
+	loadtrials_manuscript2023a(options)
+
+Load trials for the project "manuscript2023a"
+
+RETURN a vector of objects of the composite type `Trial`
+
+ARGUMENT
+-`options`: a structure containing fixed hyperparameters
+"""
+function loadtrials_manuscript2023a(options::Options)
 	file = matopen(options.datapath)
 	Cell = read(file, "Cell")
 	if haskey(Cell, "Trials_path")

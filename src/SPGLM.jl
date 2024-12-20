@@ -33,4 +33,5 @@ include("perievent_time_histogram.jl")
 include("Poisson.jl")
 include("save.jl")
 include("shortcuts.jl")
+include(joinpath("projects", "auditory.jl"))
 end
