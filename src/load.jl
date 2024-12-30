@@ -82,12 +82,16 @@ dictionary_default_options() = SPGLM.dictionary(SPGLM.Options())
 """
 	namedoptions(optionsname)
 
-Load the a set of hyperparameters saved in `/options/<optionsname>.csv`
+Load the a set of hyperparameters saved in `/options.csv`
 """
 function dictionary_named_options(optionsname::String)
-	dictionary(joinpath(dirname(@__DIR__),"options", optionsname*".csv"),1)
+	csvpath = joinpath(dirname(@__DIR__),"options.csv")
+	df = DataFrames.DataFrame(CSV.File(csvpath))
+	row = df[df.name .== optionsname,:]
+	select!(row, Not(:name))
+	dict = Dict(pairs(eachcol(row)))
+	Dict(string(k) => v[1] for (k, v) in dict)
 end
-
 
 """
 	Options(options, fieldname, value)

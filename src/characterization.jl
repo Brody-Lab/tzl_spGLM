@@ -99,9 +99,9 @@ RETURN a vector representing the post-spike filter
 The first element of the vector corresponds to the first time step after the spike.
 """
 function postspikefilter(model::Model)
-	Tpre = ceil(Int, (model.options.bfs_postspike_end_s-model.options.bfs_postspike_begin_s)/model.options.dt)
-	𝐡 = zeros(Tpre)
 	index = findfirst((set)->set.name==:postspike, model.basissets)
+	Tpre = length(model.basissets[index].timesteps_s)
+	𝐡 = zeros(Tpre)
 	if !isempty(model.weightindices.postspike)
 		𝐡 += model.basissets[index].Φ*model.𝐰[model.weightindices.postspike]
 	end

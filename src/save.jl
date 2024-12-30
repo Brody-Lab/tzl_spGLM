@@ -39,6 +39,19 @@ function save(characterization::Characterization, outputpath::String)
 		matwrite(path, dict)
 	end
 end
+
+"""
+	save_clicks(model)
+
+Save the click times and source
+"""
+function save_clicks(model::Model)
+	clicks_timestep = collect(trial.clicks_timestep for trial in model.trials)
+	clicks_source = collect(trial.clicks_source for trial in model.trials)
+	matwrite(joinpath(model.options.outputpath, "clicks_timestep.mat"), Dict("clicks_timestep"=>clicks_timestep))
+	matwrite(joinpath(model.options.outputpath, "clicks_source.mat"), Dict("clicks_source"=>clicks_source))
+end
+
 """
 	convolutionkernels(model)
 
