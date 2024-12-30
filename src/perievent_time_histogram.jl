@@ -34,9 +34,9 @@ function perievent_time_histograms(basissets::Vector{<:BasisFunctionSet}, 𝚲::
 	if reference_event==options.reference_event
 		basisindex = first(findall((set)->set.name==:time_in_trial, basissets))
 		if options.time_in_trial_end_s == 0.0
-			reference_timesteps = collect([findfirst(trial.timesteps_s .== 0)] for trial in trials)
+			reference_timesteps = collect([findfirst(trial.timesteps_s .== options.time_in_trial_begin_s)] for trial in trials)
 		else
-			reference_timesteps = collect([findfirst(trial.timesteps_s .> 0)] for trial in trials)
+			reference_timesteps = collect([findfirst(trial.timesteps_s .> options.time_in_trial_begin_s)] for trial in trials)
 		end
 	elseif reference_event=="movement"
 		basisindex = first(findall((set)->set.name==:movement, basissets))
@@ -77,6 +77,11 @@ function perievent_time_histograms(basissets::Vector{<:BasisFunctionSet}, 𝚲::
 	end
 	timesteps_s = basissets[basisindex].timesteps_s
 	timesteps = ceil.(Int, timesteps_s./options.dt)
+	if reference_event==options.reference_event
+		timesteps = collect(1:length(timesteps_s))
+	else
+		timesteps = ceil.(Int, timesteps_s./options.dt)
+	end
 	peths = map(collect(fieldnames(SPGLM.PETHSet))) do condition
 				trialindices = collect(SPGLM.selecttrial(condition, trial) for trial in trials)
 				if sum(trialindices)==0

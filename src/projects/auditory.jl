@@ -52,8 +52,8 @@ function loadtrials_auditory(options::Options)
     col_reference_event = Symbol(options.reference_event*"_s")
     col_trim_after_event= Symbol(options.trim_after_event*"_s")
     if options.reference_event == "stereoclick"
-        first_reference_time_s = trials.leftclicks_s[trialindices[1]][1]
-        last_reference_time_s = trials.leftclicks_s[trialindices[end]][1]
+        first_reference_time_s = trials.leftclick_s[trialindices[1]][1]
+        last_reference_time_s = trials.leftclick_s[trialindices[end]][1]
     else
         first_reference_time_s = trials[trialindices[1], col_reference_event]
         last_reference_time_s = trials[trialindices[end], col_reference_event]
@@ -67,7 +67,7 @@ function loadtrials_auditory(options::Options)
     end
     map(trialindices) do i
         if options.reference_event == "stereoclick"
-            reference_time_s = trials.leftclicks_s[i][1]
+            reference_time_s = trials.leftclick_s[i][1]
         else
             reference_time_s = trials[i, col_reference_event]
         end

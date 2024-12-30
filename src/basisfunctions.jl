@@ -65,13 +65,17 @@ function BasisFunctionSet(setname::Symbol, options::Options, trials::Vector{<:Tr
 	D = getfield(options, Symbol("bfs_"*String(setname)*"_D"))
 	timesteps_s = begin_s:options.dt:end_s
 	N = length(timesteps_s)
-	distortion_s = getfield(options, Symbol("bfs_"*String(setname)*"_distortion_s"))
-	ηindex = ceil(Int, (distortion_s-begin_s)/options.dt)
-	Φ = basisfunctions(N, D;
-					begins0=getfield(options, Symbol("bfs_"*String(setname)*"_begins0")),
-					ends0=getfield(options, Symbol("bfs_"*String(setname)*"_ends0")),
-					η=getfield(options, Symbol("bfs_"*String(setname)*"_distortion")),
-					ηindex = ηindex)
+    if D > 0
+        distortion_s = getfield(options, Symbol("bfs_"*String(setname)*"_distortion_s"))
+        ηindex = ceil(Int, (distortion_s-begin_s)/options.dt)
+        Φ = basisfunctions(N, D;
+                        begins0=getfield(options, Symbol("bfs_"*String(setname)*"_begins0")),
+                        ends0=getfield(options, Symbol("bfs_"*String(setname)*"_ends0")),
+                        η=getfield(options, Symbol("bfs_"*String(setname)*"_distortion")),
+                        ηindex = ηindex)
+    else
+        Φ = diagm(ones(N))
+    end
 	BasisFunctionSet(timesteps_s = timesteps_s,
 					name=setname,
 					Φ=Φ)

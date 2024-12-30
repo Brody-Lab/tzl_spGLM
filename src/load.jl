@@ -80,6 +80,16 @@ RETURN a `Dict` containing the default values of the fixed hyperparameters ("opt
 dictionary_default_options() = SPGLM.dictionary(SPGLM.Options())
 
 """
+	namedoptions(optionsname)
+
+Load the a set of hyperparameters saved in `/options/<optionsname>.csv`
+"""
+function dictionary_named_options(optionsname::String)
+	dictionary(joinpath(dirname(@__DIR__),"options", optionsname*".csv"),1)
+end
+
+
+"""
 	Options(options, fieldname, value)
 
 Replace the value of a field in an instance of the struct `Options`
